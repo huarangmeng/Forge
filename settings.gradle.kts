@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "Forge"
 include(":app")
 include(":forge")
+include(":upgrade-test")
