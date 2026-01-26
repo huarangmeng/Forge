@@ -219,6 +219,46 @@ fun MainScreen(
             Text("清理上一版本")
         }
 
+        // 测试热更新 Activity
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "🧪 热更新测试",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                
+                Text(
+                    text = "测试启动热更新 APK 中新增的 Activity",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                )
+                
+                // 测试 upgrade-test 模块中的 Activity
+                Button(
+                    onClick = {
+                        HotUpdateTester.testLaunchActivity(
+                            hotUpdateManager.context,
+                            "com.hrm.forge.upgrade.UpgradeActivity"
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("启动 UpgradeActivity")
+                }
+            }
+        }
+
         // 说明文本
         Card(
             modifier = Modifier.fillMaxWidth(),

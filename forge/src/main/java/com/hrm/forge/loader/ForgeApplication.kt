@@ -3,6 +3,7 @@ package com.hrm.forge.loader
 import android.app.Application
 import android.content.Context
 import com.hrm.forge.common.DataSavingUtils
+import com.hrm.forge.loader.instrumentation.HookHelper
 import com.hrm.forge.logger.Logger
 
 /**
@@ -29,6 +30,10 @@ abstract class ForgeApplication : Application() {
         
         // 初始化数据存储
         DataSavingUtils.init(base)
+        
+        // Hook Instrumentation（必须在 Activity 启动之前）
+        // 支持占坑模式：启动未在 AndroidManifest 中注册的 Activity
+        HookHelper.hookInstrumentation(this)
         
         // 加载新版本 APK
         val loadResult = ForgeAllLoader.loadNewApk(

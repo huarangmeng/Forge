@@ -13,7 +13,7 @@ import java.io.File
  * 热更新管理器
  * 封装了热更新相关的操作
  */
-class HotUpdateManager(private val context: Context) {
+class HotUpdateManager(val context: Context) {
     
     companion object {
         private const val TAG = "HotUpdateManager"

@@ -23,6 +23,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <!-- 热更新测试 Activity -->
+        <activity
+            android:name=".HotUpdateTestActivity"
+            android:exported="false"
+            android:label="热更新测试"
+            android:theme="@style/Theme.Forge" />
+        
+        <!-- 占坑 Activity：用于启动未注册的 Activity -->
+        <activity
+            android:name="com.hrm.forge.loader.instrumentation.StubActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Forge"
+            android:launchMode="standard" />
     </application>
 
 </manifest>
