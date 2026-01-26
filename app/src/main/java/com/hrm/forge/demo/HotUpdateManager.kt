@@ -181,6 +181,30 @@ class HotUpdateManager(val context: Context) {
     }
     
     /**
+     * 测试启动 Service
+     * @param serviceClassName Service 完整类名
+     */
+    fun testStartService(serviceClassName: String): Boolean {
+        return HotUpdateTester.testStartService(context, serviceClassName)
+    }
+    
+    /**
+     * 测试停止 Service
+     * @param serviceClassName Service 完整类名
+     */
+    fun testStopService(serviceClassName: String): Boolean {
+        return HotUpdateTester.testStopService(context, serviceClassName)
+    }
+    
+    /**
+     * 测试启动 Activity
+     * @param activityClassName Activity 完整类名
+     */
+    fun testLaunchActivity(activityClassName: String): Boolean {
+        return HotUpdateTester.testLaunchActivity(context, activityClassName)
+    }
+    
+    /**
      * 从 Assets 加载 APK 并发布
      * @param assetFileName Assets 中的 APK 文件名（例如：app-debug.apk）
      * @param callback 回调

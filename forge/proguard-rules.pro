@@ -56,6 +56,18 @@
     *;
 }
 
+-keep class com.hrm.forge.loader.instrumentation.ServiceHelper {
+    public *;
+}
+
+-keep class com.hrm.forge.loader.instrumentation.AMSHookHelper {
+    public *;
+}
+
+-keep class com.hrm.forge.loader.instrumentation.AMSHookHelper$AMSInvocationHandler {
+    *;
+}
+
 # 保持 Builder Service
 -keep class com.hrm.forge.builder.ForgeBuilderService {
     public *;

@@ -231,7 +231,7 @@ fun MainScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "🧪 热更新测试",
+                    text = "🧪 Activity 测试",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onErrorContainer
@@ -246,8 +246,7 @@ fun MainScreen(
                 // 测试 upgrade-test 模块中的 Activity
                 Button(
                     onClick = {
-                        HotUpdateTester.testLaunchActivity(
-                            hotUpdateManager.context,
+                        hotUpdateManager.testLaunchActivity(
                             "com.hrm.forge.upgrade.UpgradeActivity"
                         )
                     },
@@ -256,6 +255,97 @@ fun MainScreen(
                 ) {
                     Text("启动 UpgradeActivity")
                 }
+            }
+        }
+
+        // 测试热更新 Service
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "🔧 Service 测试",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                
+                Text(
+                    text = "测试启动热更新 APK 中新增的 Service（查看 Logcat 日志验证）",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                )
+                
+                // 测试 TestService (startService)
+                Button(
+                    onClick = {
+                        hotUpdateManager.testStartService(
+                            "com.hrm.forge.upgrade.TestService"
+                        )
+                        onShowToast("已启动 TestService，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("启动 TestService")
+                }
+                
+                // 停止 TestService
+                OutlinedButton(
+                    onClick = {
+                        hotUpdateManager.testStopService(
+                            "com.hrm.forge.upgrade.TestService"
+                        )
+                        onShowToast("已停止 TestService")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("停止 TestService")
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                // 测试 TestBindService (bindService)
+                Button(
+                    onClick = {
+                        hotUpdateManager.testStartService(
+                            "com.hrm.forge.upgrade.TestBindService"
+                        )
+                        onShowToast("已启动 TestBindService，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("启动 TestBindService")
+                }
+                
+                // 停止 TestBindService
+                OutlinedButton(
+                    onClick = {
+                        hotUpdateManager.testStopService(
+                            "com.hrm.forge.upgrade.TestBindService"
+                        )
+                        onShowToast("已停止 TestBindService")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("停止 TestBindService")
+                }
+                
+                Text(
+                    text = "💡 提示：查看 Logcat 过滤 'TestService' 或 'StubService' 标签",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
 
@@ -286,6 +376,11 @@ fun MainScreen(
                         • 构建号、APK路径、SHA1 仅在热更新时显示
                         • 点击"从 Assets 加载热更新"可加载测试 APK
                         • 发布成功后需要重启应用才能生效
+                        
+                        热更新测试：
+                        • Activity 测试：启动未在主 APK 中注册的 Activity
+                        • Service 测试：启动未在主 APK 中注册的 Service
+                        • 通过 Logcat 查看测试日志（标签：TestService、StubService、AMSHookHelper）
                     """.trimIndent(),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
