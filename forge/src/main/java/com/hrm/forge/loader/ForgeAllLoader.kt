@@ -4,6 +4,8 @@ import android.content.Context
 import com.hrm.forge.common.DataSavingUtils
 import com.hrm.forge.common.FileUtil
 import com.hrm.forge.loader.instrumentation.ActivityInfoManager
+import com.hrm.forge.loader.instrumentation.ComponentInfoManager
+import com.hrm.forge.loader.instrumentation.ServiceHelper
 import com.hrm.forge.logger.Logger
 import java.io.File
 
@@ -107,8 +109,8 @@ object ForgeAllLoader {
                     return soResult
                 }
 
-                // 5. 初始化 Activity 信息管理器
-                ActivityInfoManager.init(context, apkFile.absolutePath)
+                // 5. 初始化组件信息管理器（一次性解析 Activity 和 Service）
+                ComponentInfoManager.init(context, apkFile.absolutePath)
 
                 // 6. 创建 ApplicationLike 实例
                 if (!applicationLikeClassName.isNullOrEmpty()) {

@@ -1,5 +1,6 @@
 package com.hrm.forge.loader.instrumentation
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.hrm.forge.logger.Logger
 import java.lang.reflect.InvocationHandler
@@ -78,6 +79,7 @@ object AMSHookHelper {
      * - Android 8.0 (API 26) 之前：ActivityManagerNative.getDefault()
      * - Android 8.0 (API 26) 及之后：ActivityManager.IActivityManagerSingleton
      */
+    @SuppressLint("PrivateApi")
     private fun getIActivityManager(): Any? {
         return try {
             // 先尝试 Android 8.0+ 的方式
@@ -111,6 +113,7 @@ object AMSHookHelper {
     /**
      * 替换系统的 IActivityManager
      */
+    @SuppressLint("PrivateApi")
     private fun replaceIActivityManager(proxy: Any) {
         try {
             // 先尝试 Android 8.0+ 的方式
