@@ -1,4 +1,4 @@
-package com.hrm.forge
+package com.hrm.forge.demo
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,14 +11,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.hrm.forge.ui.theme.ForgeTheme
+import com.hrm.forge.demo.theme.ForgeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ForgeTheme {
+            _root_ide_package_.com.hrm.forge.demo.theme.ForgeTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
                         name = "Android",

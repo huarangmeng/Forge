@@ -1,4 +1,4 @@
-package com.hrm.forge.ui.theme
+package com.hrm.forge.demo.theme
 
 import androidx.compose.ui.graphics.Color
 

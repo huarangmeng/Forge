@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.hrm.forge"
+    namespace = "com.hrm.forge.demo"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.hrm.forge"
+        applicationId = "com.hrm.forge.demo"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -53,4 +53,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    implementation(project(":forge"))
 }
