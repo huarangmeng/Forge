@@ -1,5 +1,6 @@
 package com.hrm.forge.loader
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.AssetManager
 import android.content.res.Resources
@@ -22,6 +23,7 @@ object ForgeResourceLoader {
      * @param context Context
      * @param apkPath APK 路径
      */
+    @SuppressLint("PrivateApi")
     fun loadResources(context: Context, apkPath: String) {
         Logger.i(TAG, "Start load resources from: $apkPath")
         
@@ -92,6 +94,7 @@ object ForgeResourceLoader {
     /**
      * 替换 LoadedApk 中的 Resources
      */
+    @SuppressLint("PrivateApi")
     private fun replaceLoadedApkResources(context: Context, resources: Resources) {
         try {
             // 获取 ContextImpl 的 mPackageInfo 字段
@@ -120,6 +123,7 @@ object ForgeResourceLoader {
      * 替换 ActivityThread 中的所有 Resources
      * 这个方法在某些场景下可能需要，比如多个 Activity 共享资源
      */
+    @SuppressLint("PrivateApi")
     fun replaceActivityThreadResources(resources: Resources) {
         try {
             val activityThreadClass = Class.forName("android.app.ActivityThread")
@@ -152,38 +156,34 @@ object ForgeResourceLoader {
     private fun replaceResourcesManager(resourcesManager: Any, resources: Resources) {
         try {
             val resourcesManagerClass = resourcesManager.javaClass
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                // Android 4.4+ 使用 ArrayMap
-                val mActiveResourcesField = resourcesManagerClass.getDeclaredField("mActiveResources")
-                mActiveResourcesField.isAccessible = true
-                val activeResources = mActiveResourcesField.get(resourcesManager) as? MutableMap<*, *>
-                
-                if (activeResources != null) {
-                    @Suppress("UNCHECKED_CAST")
-                    val map = activeResources as MutableMap<Any, Any>
-                    
-                    // 替换所有的 Resources 引用
-                    map.forEach { (key, value) ->
-                        try {
-                            // Resources 可能包装在 WeakReference 中
-                            if (value is java.lang.ref.WeakReference<*>) {
-                                val ref = value as java.lang.ref.WeakReference<Resources>
-                                if (ref.get() != null) {
-                                    map[key] = java.lang.ref.WeakReference(resources)
-                                }
-                            } else if (value is Resources) {
-                                map[key] = resources
+            val mActiveResourcesField = resourcesManagerClass.getDeclaredField("mActiveResources")
+            mActiveResourcesField.isAccessible = true
+            val activeResources = mActiveResourcesField.get(resourcesManager) as? MutableMap<*, *>
+
+            if (activeResources != null) {
+                @Suppress("UNCHECKED_CAST")
+                val map = activeResources as MutableMap<Any, Any>
+
+                // 替换所有的 Resources 引用
+                map.forEach { (key, value) ->
+                    try {
+                        // Resources 可能包装在 WeakReference 中
+                        if (value is java.lang.ref.WeakReference<*>) {
+                            val ref = value
+                            if (ref.get() != null) {
+                                map[key] = java.lang.ref.WeakReference(resources)
                             }
-                        } catch (e: Exception) {
-                            Logger.e(TAG, "Replace resource entry failed", e)
+                        } else if (value is Resources) {
+                            map[key] = resources
                         }
+                    } catch (e: Exception) {
+                        Logger.e(TAG, "Replace resource entry failed", e)
                     }
-                    
-                    Logger.d(TAG, "Replace ResourcesManager active resources success")
                 }
+
+                Logger.d(TAG, "Replace ResourcesManager active resources success")
             }
-            
+
         } catch (e: Exception) {
             Logger.e(TAG, "Replace ResourcesManager failed", e)
         }

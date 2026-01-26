@@ -3,6 +3,7 @@ package com.hrm.forge.loader
 import android.content.Context
 import com.hrm.forge.common.DataSavingUtils
 import com.hrm.forge.common.FileUtil
+import com.hrm.forge.loader.instrumentation.ActivityInfoManager
 import com.hrm.forge.logger.Logger
 import java.io.File
 
@@ -12,14 +13,14 @@ import java.io.File
  */
 object ForgeAllLoader {
     private const val TAG = "ForgeAllLoader"
-    
+
     // 存储键
     private const val KEY_CURRENT_VERSION = "forge_current_version"
     private const val KEY_CURRENT_APK_PATH = "forge_current_apk_path"
     private const val KEY_LOAD_SUCCESS = "forge_load_success"
     private const val KEY_LAST_VERSION = "forge_last_version"
     private const val KEY_LAST_APK_PATH = "forge_last_apk_path"
-    
+
     // 加载结果码
     const val LOAD_OK = 0
     const val FAIL_VERIFY = -1
@@ -27,10 +28,10 @@ object ForgeAllLoader {
     const val FAIL_RESOURCE = -3
     const val FAIL_SO = -4
     const val NO_NEW_VERSION = -100
-    
+
     @Volatile
     private var isLoaded = false
-    
+
     /**
      * 加载新版本 APK
      * @param context Context
@@ -47,30 +48,33 @@ object ForgeAllLoader {
             Logger.w(TAG, "Already loaded, skip")
             return LOAD_OK
         }
-        
+
         synchronized(this) {
             if (isLoaded) {
                 return LOAD_OK
             }
-            
+
             try {
                 // 检查是否有新版本
                 val currentVersion = DataSavingUtils.getString(KEY_CURRENT_VERSION)
                 val currentApkPath = DataSavingUtils.getString(KEY_CURRENT_APK_PATH)
-                
+
                 if (currentVersion == null || currentApkPath == null) {
                     Logger.i(TAG, "No new version to load")
                     return NO_NEW_VERSION
                 }
-                
+
                 val apkFile = File(currentApkPath)
                 if (!apkFile.exists() || !apkFile.isFile) {
                     Logger.e(TAG, "APK file not exists: $currentApkPath")
                     return FAIL_VERIFY
                 }
-                
-                Logger.i(TAG, "Start loading new APK: version=$currentVersion, path=$currentApkPath")
-                
+
+                Logger.i(
+                    TAG,
+                    "Start loading new APK: version=$currentVersion, path=$currentApkPath"
+                )
+
                 // 1. 验证新版本
                 val verifyResult = verifyNewVersion(context, apkFile, currentVersion)
                 if (verifyResult != LOAD_OK) {
@@ -78,7 +82,7 @@ object ForgeAllLoader {
                     handleLoadFailed(context)
                     return verifyResult
                 }
-                
+
                 // 2. 加载 DEX
                 val dexResult = loadNewDex(context, apkFile)
                 if (dexResult != LOAD_OK) {
@@ -86,7 +90,7 @@ object ForgeAllLoader {
                     handleLoadFailed(context)
                     return dexResult
                 }
-                
+
                 // 3. 加载资源
                 val resourceResult = loadNewResource(context, apkFile)
                 if (resourceResult != LOAD_OK) {
@@ -94,7 +98,7 @@ object ForgeAllLoader {
                     handleLoadFailed(context)
                     return resourceResult
                 }
-                
+
                 // 4. 加载 SO
                 val soResult = loadNewSo(context, apkFile, nativeLibraryDir)
                 if (soResult != LOAD_OK) {
@@ -102,19 +106,22 @@ object ForgeAllLoader {
                     handleLoadFailed(context)
                     return soResult
                 }
-                
-                // 5. 创建 ApplicationLike 实例
+
+                // 5. 初始化 Activity 信息管理器
+                ActivityInfoManager.init(context, apkFile.absolutePath)
+
+                // 6. 创建 ApplicationLike 实例
                 if (!applicationLikeClassName.isNullOrEmpty()) {
                     createApplicationLike(context, applicationLikeClassName)
                 }
-                
+
                 // 标记加载成功
                 DataSavingUtils.putBoolean(KEY_LOAD_SUCCESS, true)
                 isLoaded = true
-                
+
                 Logger.i(TAG, "Load new APK success!")
                 return LOAD_OK
-                
+
             } catch (e: Exception) {
                 Logger.e(TAG, "Load new APK failed", e)
                 handleLoadFailed(context)
@@ -122,27 +129,27 @@ object ForgeAllLoader {
             }
         }
     }
-    
+
     /**
      * 验证新版本
      */
     private fun verifyNewVersion(context: Context, apkFile: File, version: String): Int {
         Logger.i(TAG, "Verifying new version: $version")
-        
+
         // 计算 SHA1
         val sha1 = FileUtil.getFileSHA1(apkFile)
         if (sha1 == null) {
             Logger.e(TAG, "Calculate SHA1 failed")
             return FAIL_VERIFY
         }
-        
+
         // 保存 SHA1
         DataSavingUtils.putString("forge_apk_sha1_$version", sha1)
-        
+
         Logger.i(TAG, "Verify success, SHA1: $sha1")
         return LOAD_OK
     }
-    
+
     /**
      * 加载新的 DEX
      */
@@ -155,7 +162,7 @@ object ForgeAllLoader {
             FAIL_DEX
         }
     }
-    
+
     /**
      * 加载新的资源
      */
@@ -168,7 +175,7 @@ object ForgeAllLoader {
             FAIL_RESOURCE
         }
     }
-    
+
     /**
      * 加载新的 SO
      */
@@ -181,7 +188,7 @@ object ForgeAllLoader {
             FAIL_SO
         }
     }
-    
+
     /**
      * 创建 ApplicationLike 实例
      */
@@ -190,44 +197,44 @@ object ForgeAllLoader {
             val clazz = Class.forName(className)
             val constructor = clazz.getConstructor(Context::class.java)
             val instance = constructor.newInstance(context)
-            
+
             if (context is ForgeApplication) {
                 context.setApplicationLike(instance)
             }
-            
+
             Logger.i(TAG, "Create ApplicationLike success: $className")
         } catch (e: Exception) {
             Logger.e(TAG, "Create ApplicationLike failed: $className", e)
         }
     }
-    
+
     /**
      * 处理加载失败
      */
     private fun handleLoadFailed(context: Context) {
         Logger.w(TAG, "Handle load failed, try to rollback")
-        
+
         // 标记加载失败
         DataSavingUtils.putBoolean(KEY_LOAD_SUCCESS, false)
-        
+
         // 尝试回滚到上一个版本
         val lastVersion = DataSavingUtils.getString(KEY_LAST_VERSION)
         val lastApkPath = DataSavingUtils.getString(KEY_LAST_APK_PATH)
-        
+
         if (lastVersion != null && lastApkPath != null) {
             Logger.i(TAG, "Rollback to last version: $lastVersion")
             DataSavingUtils.putString(KEY_CURRENT_VERSION, lastVersion)
             DataSavingUtils.putString(KEY_CURRENT_APK_PATH, lastApkPath)
         }
     }
-    
+
     /**
      * 获取当前版本
      */
     fun getCurrentVersion(): String? {
         return DataSavingUtils.getString(KEY_CURRENT_VERSION)
     }
-    
+
     /**
      * 是否已加载
      */

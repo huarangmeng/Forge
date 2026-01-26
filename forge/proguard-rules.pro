@@ -44,6 +44,18 @@
     public *;
 }
 
+-keep class com.hrm.forge.loader.instrumentation.StubActivity* {
+    *;
+}
+
+-keep class com.hrm.forge.loader.instrumentation.ActivityInfoManager {
+    public *;
+}
+
+-keep class com.hrm.forge.loader.instrumentation.StubService {
+    *;
+}
+
 # 保持 Builder Service
 -keep class com.hrm.forge.builder.ForgeBuilderService {
     public *;

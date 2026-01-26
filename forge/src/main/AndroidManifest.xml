@@ -1,4 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <application>
+
+        <!-- 占坑 Activity：Standard 模式 -->
+        <activity
+            android:name="com.hrm.forge.loader.instrumentation.StubActivityStandard"
+            android:exported="false"
+            android:launchMode="standard" />
+
+        <!-- 占坑 Activity：SingleTop 模式 -->
+        <activity
+            android:name="com.hrm.forge.loader.instrumentation.StubActivitySingleTop"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
+        <!-- 占坑 Activity：SingleTask 模式 -->
+        <activity
+            android:name="com.hrm.forge.loader.instrumentation.StubActivitySingleTask"
+            android:exported="false"
+            android:launchMode="singleTask" />
+
+        <!-- 占坑 Activity：SingleInstance 模式 -->
+        <activity
+            android:name="com.hrm.forge.loader.instrumentation.StubActivitySingleInstance"
+            android:exported="false"
+            android:launchMode="singleInstance" />
+
+        <!-- 占坑 Service：用于启动未注册的 Service -->
+        <service
+            android:name="com.hrm.forge.loader.instrumentation.StubService"
+            android:exported="false" />
+    </application>
 </manifest>

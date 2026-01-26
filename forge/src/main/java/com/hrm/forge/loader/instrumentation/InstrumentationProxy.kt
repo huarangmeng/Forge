@@ -27,9 +27,6 @@ class InstrumentationProxy(private val base: Instrumentation) : Instrumentation(
     private val TAG = "InstrumentationProxy"
     
     companion object {
-        // 占坑 Activity 的类名
-        private const val STUB_ACTIVITY = "com.hrm.forge.loader.instrumentation.StubActivity"
-        
         // 用于在 Intent 中保存真实 Activity 信息的 key
         private const val KEY_REAL_ACTIVITY = "intent_real_class_name"
     }
@@ -62,18 +59,19 @@ class InstrumentationProxy(private val base: Instrumentation) : Instrumentation(
             Logger.d(TAG, "Target activity: $targetClass")
             
             // 检查目标 Activity 是否已注册
-            if (targetClass != null && who != null && !isActivityRegistered(who, targetClass)) {
+            if (targetClass != null && who != null && !ActivityInfoManager.isActivityRegisteredInMain(targetClass)) {
                 Logger.i(TAG, "⚠️ Activity not registered: $targetClass")
                 Logger.i(TAG, "🔄 Using stub activity for replacement")
                 
                 // 保存真实 Activity 信息到 Intent
                 intent.putExtra(KEY_REAL_ACTIVITY, targetClass)
                 
-                // 替换 Intent 的 component 为占坑 Activity
-                val stubComponent = ComponentName(who.packageName, STUB_ACTIVITY)
+                // 根据启动模式选择对应的占坑 Activity
+                val stubActivity = ActivityInfoManager.getStubActivityForRealActivity(targetClass)
+                val stubComponent = ComponentName(who.packageName, stubActivity)
                 intent.component = stubComponent
                 
-                Logger.i(TAG, "✅ Replaced with stub activity: $STUB_ACTIVITY")
+                Logger.i(TAG, "✅ Replaced with stub activity: $stubActivity")
             } else {
                 Logger.d(TAG, "✅ Activity registered or no need to replace")
             }
@@ -126,26 +124,6 @@ class InstrumentationProxy(private val base: Instrumentation) : Instrumentation(
             // 反射调用的异常会被包装成 InvocationTargetException
             // 取出真正的异常并抛出
             throw e.targetException ?: e
-        }
-    }
-    
-    /**
-     * 检查 Activity 是否已在 AndroidManifest 中注册
-     */
-    private fun isActivityRegistered(context: Context, className: String): Boolean {
-        return try {
-            val pm = context.packageManager
-            val intent = Intent()
-            intent.component = ComponentName(context.packageName, className)
-            
-            val resolveInfo = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            val isRegistered = resolveInfo != null
-            
-            Logger.d(TAG, "Check activity registered: $className -> $isRegistered")
-            isRegistered
-        } catch (e: Exception) {
-            Logger.e(TAG, "Check activity registration failed: $className", e)
-            false
         }
     }
     
