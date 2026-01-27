@@ -153,10 +153,21 @@ Forge.setLogLevel(Logger.LogLevel.DEBUG)
 - 清理旧版本
 - 使用 Jetpack Compose 构建的现代化 UI
 
+### 构建配置
+
+Demo 应用的构建配置：
+
+- **Debug 版本**：未混淆，便于开发调试和测试热更新功能
+- **Release 版本**：开启混淆和优化，展示生产环境的使用方式
+
 ### 运行 Demo
 
 ```bash
+# 安装 Debug 版本
 ./gradlew :app:installDebug
+
+# 构建 Release 版本
+./gradlew :app:assembleRelease
 ```
 
 ## 工作原理
@@ -204,7 +215,7 @@ Forge 自动管理版本：
 
 ## ProGuard 配置
 
-如果启用混淆，请添加以下规则：
+如果启用混淆（如 Release 构建），请添加以下规则：
 
 ```proguard
 # 保持 Forge 核心类
@@ -222,6 +233,8 @@ Forge 自动管理版本：
     public void onCreate();
 }
 ```
+
+**重要提示**：Demo 应用的 Release 版本已开启混淆，ProGuard 规则已配置在 `app/proguard-rules.pro` 中。
 
 ## 注意事项
 

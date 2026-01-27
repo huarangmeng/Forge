@@ -21,11 +21,17 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Forge Demo 应用 - 展示热更新框架的使用示例
+            // 包含版本管理、DEX/资源/SO库动态加载等功能
+        }
+        debug {
+            isMinifyEnabled = false
+            // 开发调试版本，便于测试热更新功能
         }
     }
     compileOptions {
