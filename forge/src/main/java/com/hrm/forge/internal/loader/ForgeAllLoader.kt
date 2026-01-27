@@ -112,7 +112,7 @@ internal object ForgeAllLoader {
                     return soResult
                 }
 
-                // 5. 初始化组件信息管理器（一次性解析 Activity 和 Service）
+                // 5. 初始化组件信息管理器（一次性解析 Activity、Service 和 BroadcastReceiver）
                 ComponentManager.init(context, apkFile.absolutePath)
 
                 // 6. 创建 ApplicationLike 实例

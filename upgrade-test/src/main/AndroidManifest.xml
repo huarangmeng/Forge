@@ -2,9 +2,44 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
+        <!-- Activity 测试 -->
         <activity
             android:name=".UpgradeActivity"
             android:exported="false" />
+
+        <!-- 
+        BroadcastReceiver 隐式广播测试
+        
+        功能说明：
+        1. Forge 框架会解析热更新 APK 的 Manifest
+        2. 提取 Receiver 的 IntentFilter 配置（action、priority 等）
+        3. Hook AMS 拦截隐式广播
+        4. 手动创建 Receiver 实例并调用 onReceive()
+        
+        工作原理：
+        - 这是一个"伪静态注册"实现
+        - 系统无法感知这个 Receiver，但 Forge 会解析并处理
+        - 需要应用进程运行中才能接收广播
+        
+        限制：
+        - 应用未运行时无法接收（与真正的静态注册不同）
+        - Android 8.0+ 系统隐式广播限制仍然生效
+        - 无法接收需要特殊权限的系统广播
+        -->
+        <receiver
+            android:name=".ImplicitTestReceiver"
+            android:exported="false">
+            <intent-filter android:priority="100">
+                <action android:name="com.hrm.forge.IMPLICIT_TEST_ACTION" />
+                <action android:name="com.hrm.forge.ANOTHER_ACTION" />
+            </intent-filter>
+        </receiver>
+        
+        <!-- 
+        动态注册测试 Receiver（不在 Manifest 中注册）
+        - 参考 DynamicTestReceiver.kt 的实现
+        - 完全通过代码动态注册，推荐方式
+        -->
     </application>
 
 </manifest>

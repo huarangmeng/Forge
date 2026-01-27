@@ -176,6 +176,16 @@ internal object AMSHook {
                 return handleBindService(method, args)
             }
             
+            // 拦截 registerReceiver 方法（动态注册广播）
+            if (method.name == "registerReceiver" || method.name == "registerReceiverWithFeature") {
+                return handleRegisterReceiver(method, args)
+            }
+            
+            // 拦截 broadcastIntent 方法（发送广播）
+            if (method.name == "broadcastIntent" || method.name == "broadcastIntentWithFeature") {
+                return handleBroadcastIntent(method, args)
+            }
+            
             // 其他方法直接转发
             return try {
                 method.invoke(base, *(args ?: emptyArray()))
@@ -238,6 +248,69 @@ internal object AMSHook {
                 throw e.targetException ?: e
             } catch (e: Exception) {
                 Logger.e(TAG, "Failed to handle bindService", e)
+                throw e
+            }
+        }
+        
+        /**
+         * 处理 registerReceiver 方法（动态注册广播）
+         * 
+         * registerReceiver 的方法签名（可能因 Android 版本而异）：
+         * - Intent registerReceiver(IApplicationThread caller, String callerPackage, 
+         *     IIntentReceiver receiver, IntentFilter filter, String requiredPermission, ...)
+         * 
+         * 注意：此方法主要用于记录和监控，实际上动态注册的 Receiver 不需要占坑
+         * 因为它们已经通过 context.registerReceiver() 正常注册了
+         */
+        private fun handleRegisterReceiver(method: Method, args: Array<out Any?>?): Any? {
+            try {
+                Logger.d(TAG, "Intercepting registerReceiver")
+                
+                // 动态注册的 Receiver 不需要特殊处理，直接转发
+                // 因为它们已经通过正常的 ClassLoader 加载
+                return method.invoke(base, *(args ?: emptyArray()))
+                
+            } catch (e: java.lang.reflect.InvocationTargetException) {
+                throw e.targetException ?: e
+            } catch (e: Exception) {
+                Logger.e(TAG, "Failed to handle registerReceiver", e)
+                throw e
+            }
+        }
+        
+        /**
+         * 处理 broadcastIntent 方法（发送广播）
+         * 
+         * broadcastIntent 的方法签名（可能因 Android 版本而异）：
+         * - int broadcastIntent(IApplicationThread caller, Intent intent, String resolvedType, 
+         *     IIntentReceiver resultTo, int resultCode, String resultData, Bundle map, 
+         *     String[] requiredPermissions, int appOp, Bundle options, boolean serialized, 
+         *     boolean sticky, int userId)
+         * 
+         * 工作流程：
+         * 1. 检查 Intent 的 component 是否指向热更新 APK 中的 Receiver
+         * 2. 如果是，将真实 Receiver 类名保存到 Intent extra
+         * 3. 替换 component 为 StubReceiver
+         */
+        private fun handleBroadcastIntent(method: Method, args: Array<out Any?>?): Any? {
+            try {
+                Logger.d(TAG, "Intercepting broadcastIntent")
+                
+                // 处理 Intent：将未注册的 Receiver 替换为 StubReceiver
+                if (args != null && args.size >= 3) {
+                    val intent = args[2] as? android.content.Intent
+                    if (intent != null) {
+                        ComponentManager.processBroadcastIntent(context, intent)
+                    }
+                }
+                
+                // 调用原始方法
+                return method.invoke(base, *(args ?: emptyArray()))
+                
+            } catch (e: java.lang.reflect.InvocationTargetException) {
+                throw e.targetException ?: e
+            } catch (e: Exception) {
+                Logger.e(TAG, "Failed to handle broadcastIntent", e)
                 throw e
             }
         }

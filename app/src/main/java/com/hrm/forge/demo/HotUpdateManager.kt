@@ -143,6 +143,39 @@ class HotUpdateManager(val context: Context) {
     fun testLaunchActivity(activityClassName: String): Boolean {
         return HotUpdateTester.testLaunchActivity(context, activityClassName)
     }
+    
+    /**
+     * 测试动态注册 BroadcastReceiver
+     * @param receiverClassName BroadcastReceiver 完整类名
+     * @param action 要监听的广播 Action
+     */
+    fun testRegisterReceiver(receiverClassName: String, action: String = "com.hrm.forge.DYNAMIC_ACTION"): Boolean {
+        return HotUpdateTester.testRegisterReceiver(context, receiverClassName, action)
+    }
+    
+    /**
+     * 测试取消注册 BroadcastReceiver
+     * @param receiverClassName BroadcastReceiver 完整类名
+     */
+    fun testUnregisterReceiver(receiverClassName: String): Boolean {
+        return HotUpdateTester.testUnregisterReceiver(context, receiverClassName)
+    }
+    
+    /**
+     * 测试发送隐式广播
+     * @param action 广播 Action
+     */
+    fun testSendImplicitBroadcast(action: String): Boolean {
+        return HotUpdateTester.testSendImplicitBroadcast(context, action)
+    }
+    
+    /**
+     * 测试发送自定义隐式广播（用于测试"伪静态注册"）
+     * @param action 广播 Action
+     */
+    fun testSendCustomImplicitBroadcast(action: String = "com.hrm.forge.IMPLICIT_TEST_ACTION"): Boolean {
+        return HotUpdateTester.testSendCustomImplicitBroadcast(context, action)
+    }
 
     /**
      * 从 Assets 加载 APK 并发布（自动读取版本号）

@@ -30,7 +30,7 @@ Forge 是一个基于 Kotlin 开发的 Android 热更新框架，支持动态加
 | **四大组件** | ✅ 完全支持 | ❌ 不支持新增 |
 | **Activity** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
 | **Service** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
-| **BroadcastReceiver** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
+| **BroadcastReceiver** | ✅ 支持新增/修改 (有限制*) | ⚠️ 仅支持修改 |
 | **ContentProvider** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
 | **差分生成** | ❌ 不需要 | ✅ 需要 oldApk + newApk |
 | **更新场景** | 版本升级 + Bug 修复 | Bug 修复 |
@@ -296,6 +296,73 @@ Forge 自动管理版本：
 3. **包名匹配**：新版本 APK 的包名必须与宿主应用一致
 4. **重启生效**：发布新版本后需要重启应用
 5. **混淆规则**：关键类不能被混淆
+
+### BroadcastReceiver 限制说明
+
+BroadcastReceiver 的热更新支持有以下限制：
+
+#### ✅ 完全支持的场景
+
+| 场景 | 支持程度 | 说明 |
+|------|---------|------|
+| **修改已有 Receiver** | ✅ 完全支持 | DEX 热更新会自动覆盖旧代码 |
+| **动态注册 Receiver** | ✅ 完全支持 | 与普通 Receiver 无任何区别 |
+| **显式广播** | ✅ 完全支持 | 可以发送到热更新 APK 中新增的 Receiver |
+| **隐式广播（应用运行时）** | ✅ 完全支持 | Forge 自动解析 Manifest 并拦截匹配的广播 |
+
+#### ⚠️ 不支持的场景
+
+| 场景 | 支持程度 | 说明 |
+|------|---------|------|
+| **应用未运行时接收广播** | ❌ 不支持 | 需要应用进程存活（与真正的静态注册不同） |
+
+#### 详细说明
+
+**1. 动态注册（推荐方式）**
+```kotlin
+// ✅ 完全支持，无任何限制
+class MyReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        // 处理广播
+    }
+}
+
+// 在代码中动态注册
+val receiver = MyReceiver()
+context.registerReceiver(receiver, IntentFilter("MY_ACTION"))
+```
+
+**2. 静态注册（有限制）**
+```kotlin
+// ✅ 支持：在热更新 APK 的 Manifest 中声明
+// upgrade-test/src/main/AndroidManifest.xml
+<receiver android:name=".MyReceiver" android:exported="false">
+    <intent-filter android:priority="100">
+        <action android:name="com.example.MY_ACTION" />
+    </intent-filter>
+</receiver>
+
+// 发送广播，应用运行时会收到
+context.sendBroadcast(Intent("com.example.MY_ACTION"))
+
+// ❌ 应用未运行时无法接收
+// 原因：热更新 Receiver 依赖进程存活，无法被系统唤醒
+```
+
+**工作原理：**
+- Forge 自动解析热更新 APK 的 AndroidManifest.xml
+- 提取 Receiver 的 IntentFilter 配置（action、priority 等）
+- Hook AMS 拦截隐式广播，匹配并手动分发到热更新 Receiver
+- 按优先级排序，避免重复分发
+
+**核心限制：**
+- 静态注册的 Receiver 只能在**应用进程运行时**接收广播
+- 应用未运行时，系统无法唤醒热更新 Receiver（需要真正的静态注册）
+
+**建议：**
+- 需要在应用未运行时接收广播的功能，必须在**主 APK** 中提前声明 Receiver
+- 其他场景优先使用**动态注册**（更灵活）
+
 
 ## 文档
 

@@ -384,6 +384,125 @@ fun MainScreen(
             }
         }
 
+        // BroadcastReceiver 测试卡片
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "📡 BroadcastReceiver 测试",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                
+                Text(
+                    text = "测试热更新 APK 中新增的 BroadcastReceiver（查看 Logcat 日志验证）",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                )
+                
+                Text(
+                    text = "1. 动态注册测试",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                
+                // 动态注册 DynamicTestReceiver
+                Button(
+                    onClick = {
+                        hotUpdateManager.testRegisterReceiver(
+                            "com.hrm.forge.upgrade.DynamicTestReceiver",
+                            "com.hrm.forge.DYNAMIC_ACTION"
+                        )
+                        onShowToast("已动态注册 DynamicTestReceiver")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("动态注册 Receiver")
+                }
+                
+                // 发送隐式广播（测试动态注册）
+                Button(
+                    onClick = {
+                        hotUpdateManager.testSendImplicitBroadcast(
+                            "com.hrm.forge.DYNAMIC_ACTION"
+                        )
+                        onShowToast("已发送隐式广播，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("发送广播到动态 Receiver")
+                }
+                
+                // 取消注册 DynamicTestReceiver
+                OutlinedButton(
+                    onClick = {
+                        hotUpdateManager.testUnregisterReceiver(
+                            "com.hrm.forge.upgrade.DynamicTestReceiver"
+                        )
+                        onShowToast("已取消注册 DynamicTestReceiver")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("取消注册 Receiver")
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                Text(
+                    text = "2. 静态注册测试（应用运行时）",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                
+                // 发送自定义隐式广播（测试静态注册）
+                Button(
+                    onClick = {
+                        hotUpdateManager.testSendCustomImplicitBroadcast()
+                        onShowToast("已发送隐式广播，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("发送广播到静态 Receiver")
+                }
+                
+                Text(
+                    text = "💡 ImplicitTestReceiver 在热更新 APK 的 Manifest 中静态注册，Forge 自动解析 IntentFilter 并拦截匹配的隐式广播",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                
+                Text(
+                    text = "⚠️ 限制：应用未运行时无法接收广播（需要进程存活）",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+                
+                Text(
+                    text = "🔍 查看 Logcat 过滤 'ImplicitTestReceiver' 或 'ComponentManager' 标签",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+
         // 说明文本
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -418,9 +537,13 @@ fun MainScreen(
                         • 首次加载热更新后，可回滚到未加载状态
                         
                         热更新测试：
-                        • Activity 测试：启动未在主 APK 中注册的 Activity
-                        • Service 测试：启动未在主 APK 中注册的 Service
-                        • 通过 Logcat 查看测试日志（标签：TestService、StubService、AMSHookHelper）
+                        • Activity：启动未在主 APK 中注册的 Activity
+                        • Service：启动未在主 APK 中注册的 Service
+                        • BroadcastReceiver：
+                          ✅ 动态注册：完全支持，与普通 Receiver 无区别
+                          ✅ 静态注册：支持在应用运行时接收广播
+                          ❌ 应用未运行时：无法接收广播（需要进程存活）
+                        • 通过 Logcat 查看测试日志验证功能
                     """.trimIndent(),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSecondaryContainer

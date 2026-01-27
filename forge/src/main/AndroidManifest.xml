@@ -31,5 +31,13 @@
         <service
             android:name="com.hrm.forge.loader.instrumentation.StubService"
             android:exported="false" />
+
+        <!-- 占坑 BroadcastReceiver：用于接收热更新 APK 中新增的静态 Receiver -->
+        <receiver
+            android:name="com.hrm.forge.internal.hook.StubReceiver"
+            android:exported="true">
+            <!-- 可以在这里添加常用的系统广播 IntentFilter -->
+            <!-- 注意：由于无法动态修改 Manifest，建议使用动态注册 -->
+        </receiver>
     </application>
 </manifest>
