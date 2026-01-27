@@ -1,10 +1,10 @@
 package com.hrm.forge.internal.state
 
 import android.content.Context
+import com.hrm.forge.internal.log.Logger
 import com.hrm.forge.internal.util.Constants
 import com.hrm.forge.internal.util.DataStorage
 import com.hrm.forge.internal.util.FileUtils
-import com.hrm.forge.internal.log.Logger
 import java.io.File
 
 /**
@@ -15,7 +15,7 @@ import java.io.File
  * - 加载状态（是否加载成功、是否待重启）
  * - 版本文件管理（以版本号命名的文件夹）
  * - 回滚和清理操作
- * 
+ *
  * @hide 此类仅供内部使用，不对外暴露
  */
 internal object VersionStateManager {
@@ -33,7 +33,7 @@ internal object VersionStateManager {
 
     private const val KEY_LOAD_SUCCESS = "forge_load_success"
     private const val KEY_PENDING_RESTART = "forge_pending_restart"
-    
+
     // 记录实际运行的版本（加载成功后才更新）
     private const val KEY_RUNTIME_VERSION = "forge_runtime_version"
     private const val KEY_RUNTIME_VERSION_CODE = "forge_runtime_version_code"
@@ -90,14 +90,19 @@ internal object VersionStateManager {
     /**
      * 保存新版本信息
      */
-    internal fun saveNewVersion(context: Context, version: String, versionCode: Long, apkPath: String, sha1: String) {
+    internal fun saveNewVersion(
+        version: String,
+        versionCode: Long,
+        apkPath: String,
+        sha1: String
+    ): Boolean {
         Logger.i(TAG, "Save new version: $version ($versionCode)")
 
         // 获取当前实际运行的版本（用作 previousVersion）
         val runtimeVersion = DataStorage.getString(KEY_RUNTIME_VERSION)
         val runtimeVersionCode = DataStorage.getLong(KEY_RUNTIME_VERSION_CODE, 0L)
         val runtimeApkPath = DataStorage.getString(KEY_RUNTIME_APK_PATH)
-        
+
         if (runtimeVersion != null && runtimeApkPath != null) {
             // 当前有热更新在运行，备份运行中的版本
             DataStorage.putString(KEY_PREVIOUS_VERSION, runtimeVersion)
@@ -119,9 +124,10 @@ internal object VersionStateManager {
         DataStorage.putString(KEY_CURRENT_SHA1, sha1)
 
         // 标记待重启
-        DataStorage.putBoolean(KEY_PENDING_RESTART, true)
+        val result = DataStorage.putBoolean(KEY_PENDING_RESTART, true)
 
         Logger.i(TAG, "✅ Version saved, pending restart")
+        return result
     }
 
     /**
@@ -132,7 +138,7 @@ internal object VersionStateManager {
         val currentVersion = DataStorage.getString(KEY_CURRENT_VERSION)
         val currentVersionCode = DataStorage.getLong(KEY_CURRENT_VERSION_CODE, 0L)
         val currentApkPath = DataStorage.getString(KEY_CURRENT_APK_PATH)
-        
+
         // 记录实际运行的版本（用于下次发布时确定 previousVersion）
         if (currentVersion != null && currentApkPath != null) {
             DataStorage.putString(KEY_RUNTIME_VERSION, currentVersion)
@@ -140,7 +146,7 @@ internal object VersionStateManager {
             DataStorage.putString(KEY_RUNTIME_APK_PATH, currentApkPath)
             Logger.i(TAG, "✅ Marked runtime version: $currentVersion")
         }
-        
+
         DataStorage.putBoolean(KEY_LOAD_SUCCESS, true)
         DataStorage.putBoolean(KEY_PENDING_RESTART, false)
         Logger.i(TAG, "✅ Marked load success")
@@ -154,7 +160,7 @@ internal object VersionStateManager {
         DataStorage.remove(KEY_RUNTIME_VERSION)
         DataStorage.remove(KEY_RUNTIME_VERSION_CODE)
         DataStorage.remove(KEY_RUNTIME_APK_PATH)
-        
+
         DataStorage.putBoolean(KEY_PENDING_RESTART, false)
         DataStorage.putBoolean(KEY_LOAD_SUCCESS, false)
         Logger.i(TAG, "✅ Cleared pending restart flag (no hot update to load)")
@@ -188,7 +194,7 @@ internal object VersionStateManager {
 
         try {
             // ⚠️ 不删除当前版本文件，保留版本历史
-            
+
             // 切换到上一个版本
             DataStorage.putString(KEY_CURRENT_VERSION, currentState.previousVersion)
             DataStorage.putLong(KEY_CURRENT_VERSION_CODE, currentState.previousVersionCode)
@@ -296,7 +302,7 @@ internal object VersionStateManager {
         DataStorage.remove(KEY_PREVIOUS_VERSION)
         DataStorage.remove(KEY_PREVIOUS_VERSION_CODE)
         DataStorage.remove(KEY_PREVIOUS_APK_PATH)
-        
+
         // 清除运行时版本
         DataStorage.remove(KEY_RUNTIME_VERSION)
         DataStorage.remove(KEY_RUNTIME_VERSION_CODE)

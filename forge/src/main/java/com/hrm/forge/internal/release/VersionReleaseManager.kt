@@ -1,12 +1,13 @@
 package com.hrm.forge.internal.release
 
 import android.content.Context
+import com.hrm.forge.api.ReleaseResult
+import com.hrm.forge.internal.log.Logger
 import com.hrm.forge.internal.state.VersionStateManager
 import com.hrm.forge.internal.util.ApkUtils
 import com.hrm.forge.internal.util.Constants
 import com.hrm.forge.internal.util.FileUtils
 import com.hrm.forge.internal.util.UnZipUtils
-import com.hrm.forge.internal.log.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -20,7 +21,7 @@ import java.io.IOException
  * - APK 安装（复制到版本目录）
  * - APK 优化（DEX 预加载、解压）
  * - 旧版本清理
- * 
+ *
  * @hide 此类仅供内部使用，不对外暴露
  */
 internal object VersionReleaseManager {
@@ -31,16 +32,16 @@ internal object VersionReleaseManager {
      *
      * @param context Context
      * @param apkFile 新版本 APK 文件
-     * @return 是否成功
+     * @return 发布结果
      */
-    suspend fun releaseNewVersion(context: Context, apkFile: File): Boolean {
+    suspend fun releaseNewVersion(context: Context, apkFile: File): ReleaseResult {
         // 从 APK 读取版本号
         val version = ApkUtils.getVersionName(context, apkFile.absolutePath)
         if (version.isNullOrEmpty()) {
             Logger.e(TAG, "Cannot read version from APK: ${apkFile.absolutePath}")
-            return false
+            return ReleaseResult.APK_READ_VERSION_FAILED
         }
-        
+
         return releaseNewVersion(context, apkFile, version)
     }
 
@@ -50,9 +51,13 @@ internal object VersionReleaseManager {
      * @param context Context
      * @param apkFile 新版本 APK 文件
      * @param version 版本号
-     * @return 是否成功
+     * @return 发布结果
      */
-    internal suspend fun releaseNewVersion(context: Context, apkFile: File, version: String): Boolean {
+    internal suspend fun releaseNewVersion(
+        context: Context,
+        apkFile: File,
+        version: String
+    ): ReleaseResult {
         return withContext(Dispatchers.IO) {
             Logger.i(TAG, "Start release new version: $version, path=${apkFile.absolutePath}")
 
@@ -60,50 +65,69 @@ internal object VersionReleaseManager {
 
             try {
                 // 1. 验证 APK
-                if (!validateApk(context, apkFile)) {
-                    return@withContext false
+                val validateResult = validateApk(context, apkFile)
+                if (validateResult != ReleaseResult.SUCCESS) {
+                    return@withContext validateResult
                 }
 
                 // 2. 获取 APK 版本码
                 val versionCode = ApkUtils.getVersionCode(context, apkFile.absolutePath)
                 if (versionCode <= 0) {
                     Logger.e(TAG, "Invalid version code: $versionCode")
-                    return@withContext false
+                    return@withContext ReleaseResult.APK_VERSION_CODE_INVALID
                 }
 
-                // 3. 安装 APK（复制到版本目录）
-                val (destApkFile, sha1) = installApk(context, apkFile, version)
-                    ?: return@withContext false
+                // 3. 检查是否已安装相同版本（避免浪费资源）
+                val currentVersionState = VersionStateManager.getVersionState()
+                if (currentVersionState.hasHotUpdate &&
+                    currentVersionState.currentVersion == version &&
+                    currentVersionState.currentVersionCode == versionCode
+                ) {
+                    Logger.i(TAG, "✓ Same version already installed: $version ($versionCode)")
+                    Logger.i(TAG, "⚠️ Skip installation to save resources")
+                    return@withContext ReleaseResult.SUCCESS
+                }
 
-                // 4. 优化 APK（DEX 预加载、解压）
+                // 4. 安装 APK（复制到版本目录)
+                val installResult = installApk(context, apkFile, version)
+                if (installResult.first != ReleaseResult.SUCCESS) {
+                    return@withContext installResult.first
+                }
+                val (_, destApkFile, sha1) = installResult
+
+                // 5. 优化 APK（DEX 预加载、解压）
                 optimizeApk(context, destApkFile)
 
-                // 5. 保存版本信息
-                VersionStateManager.saveNewVersion(
-                    context = context,
+                // 6. 保存版本信息
+                val saved = VersionStateManager.saveNewVersion(
                     version = version,
                     versionCode = versionCode,
                     apkPath = destApkFile.absolutePath,
                     sha1 = sha1
                 )
 
-                // 6. 清理旧版本
+                if (!saved) {
+                    Logger.e(TAG, "Save version state failed")
+                    return@withContext ReleaseResult.SAVE_VERSION_STATE_FAILED
+                }
+
+                // 7. 清理旧版本
                 cleanOldVersions(context, version)
 
                 val elapsed = System.currentTimeMillis() - startTime
                 Logger.i(TAG, "✅ Release new version success, elapsed: ${elapsed}ms")
                 Logger.i(TAG, "⚠️ Please restart the app to apply changes")
 
-                true
+                ReleaseResult.SUCCESS
             } catch (e: IOException) {
                 Logger.e(TAG, "Release new version failed: IO error", e)
-                false
+                ReleaseResult.UNKNOWN_ERROR
             } catch (e: SecurityException) {
                 Logger.e(TAG, "Release new version failed: Security error", e)
-                false
+                ReleaseResult.UNKNOWN_ERROR
             } catch (e: Exception) {
                 Logger.e(TAG, "Release new version failed: Unexpected error", e)
-                false
+                ReleaseResult.UNKNOWN_ERROR
             }
         }
     }
@@ -111,41 +135,50 @@ internal object VersionReleaseManager {
     /**
      * 验证 APK 文件
      * 检查文件存在性、包名和签名
+     *
+     * @return 验证结果
      */
-    private fun validateApk(context: Context, apkFile: File): Boolean {
+    private fun validateApk(context: Context, apkFile: File): ReleaseResult {
         if (!apkFile.exists() || !apkFile.isFile) {
             Logger.e(TAG, "APK file not exists: ${apkFile.absolutePath}")
-            return false
+            return ReleaseResult.APK_NOT_FOUND
         }
 
         if (!ApkUtils.isValidApk(context, apkFile)) {
-            Logger.e(TAG, "Invalid APK (package name or signature mismatch): ${apkFile.absolutePath}")
-            return false
+            Logger.e(
+                TAG,
+                "Invalid APK (package name or signature mismatch): ${apkFile.absolutePath}"
+            )
+            return ReleaseResult.APK_PACKAGE_MISMATCH
         }
 
         Logger.i(TAG, "✓ APK validation passed")
-        return true
+        return ReleaseResult.SUCCESS
     }
 
     /**
      * 安装 APK（复制到版本目录）
      *
-     * @return Pair<APK文件, SHA1> 如果失败返回 null
+     * @return Triple<结果, APK文件, SHA1>
      */
     @Throws(IOException::class)
-    private fun installApk(context: Context, apkFile: File, version: String): Pair<File, String>? {
+    private fun installApk(
+        context: Context,
+        apkFile: File,
+        version: String
+    ): Triple<ReleaseResult, File, String> {
         // 创建版本目录（以版本号命名）
         val versionDir = VersionStateManager.getVersionDir(context, version)
         if (!FileUtils.ensureDir(versionDir)) {
             Logger.e(TAG, "Cannot create version dir: ${versionDir.absolutePath}")
-            return null
+            return Triple(ReleaseResult.INSTALL_CREATE_DIR_FAILED, File(""), "")
         }
 
         // 复制 APK 到版本目录
         val destApkFile = File(versionDir, "base.apk")
         if (!FileUtils.copyFile(apkFile, destApkFile)) {
             Logger.e(TAG, "Copy APK failed")
-            return null
+            return Triple(ReleaseResult.INSTALL_COPY_APK_FAILED, File(""), "")
         }
 
         Logger.i(TAG, "✓ APK copied to: ${destApkFile.absolutePath}")
@@ -154,18 +187,18 @@ internal object VersionReleaseManager {
         val sha1 = FileUtils.getFileSHA1(destApkFile)
         if (sha1 == null) {
             Logger.e(TAG, "Calculate SHA1 failed")
-            return null
+            return Triple(ReleaseResult.INSTALL_CALCULATE_SHA1_FAILED, File(""), "")
         }
 
         Logger.i(TAG, "✓ APK SHA1: $sha1")
-        
-        return Pair(destApkFile, sha1)
+
+        return Triple(ReleaseResult.SUCCESS, destApkFile, sha1)
     }
 
     /**
      * 优化 APK
      * - 解压 APK（可选）
-     * - 预加载 DEX（优化首次启动速度）
+     * - 预加载 DEX（优化首次启动速度，仅 Android 8.0 以下）
      */
     private fun optimizeApk(context: Context, apkFile: File) {
         try {
@@ -178,8 +211,16 @@ internal object VersionReleaseManager {
             }
 
             // 预加载 DEX（触发 dex2oat 编译）
-            preloadDex(context, apkFile)
-            Logger.i(TAG, "✓ DEX preloaded")
+            // 注意：Android 8.0+ 不允许从可写目录加载 DEX，跳过预加载
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) {
+                preloadDex(context, apkFile)
+                Logger.i(TAG, "✓ DEX preloaded")
+            } else {
+                Logger.i(
+                    TAG,
+                    "✓ DEX preload skipped (Android 8.0+, system will optimize automatically)"
+                )
+            }
         } catch (e: Exception) {
             Logger.w(TAG, "Optimization failed, but continue", e)
         }
@@ -188,6 +229,9 @@ internal object VersionReleaseManager {
     /**
      * 预加载 DEX（优化首次启动速度）
      * 使用 DexClassLoader 触发系统的 dex2oat 编译
+     *
+     * 注意：此方法仅在 Android 8.0 以下使用
+     * Android 8.0+ 会在后台自动优化 DEX
      */
     @Throws(Exception::class)
     private fun preloadDex(context: Context, apkFile: File) {
@@ -208,7 +252,7 @@ internal object VersionReleaseManager {
 
     /**
      * 清理旧版本（保留最近 N 个版本）
-     * 
+     *
      * 策略：
      * - 按修改时间排序
      * - 保留最新的 N 个版本
@@ -218,7 +262,8 @@ internal object VersionReleaseManager {
         Logger.i(TAG, "Start clean old versions")
 
         try {
-            val versionsDir = File(context.filesDir, "${Constants.DIR_FORGE}/${Constants.DIR_VERSIONS}")
+            val versionsDir =
+                File(context.filesDir, "${Constants.DIR_FORGE}/${Constants.DIR_VERSIONS}")
             if (!versionsDir.exists() || !versionsDir.isDirectory) {
                 Logger.i(TAG, "Versions directory not exists")
                 return

@@ -207,10 +207,10 @@ fun MainScreen(
                 isProcessing = true
                 hotUpdateManager.releaseFromAssets(
                     assetFileName = "app-debug.apk"
-                ) { success, message ->
+                ) { result, message ->
                     isProcessing = false
                     onShowToast(message)
-                    if (success) {
+                    if (result.isSuccess) {
                         versionInfo = hotUpdateManager.getVersionInfo()
                     }
                 }

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import com.hrm.forge.api.ILogger
 import com.hrm.forge.api.LogLevel
+import com.hrm.forge.api.ReleaseResult
 import com.hrm.forge.api.VersionInfo
 import com.hrm.forge.internal.loader.ForgeAllLoader
 import com.hrm.forge.internal.log.Logger
@@ -158,9 +159,9 @@ object Forge {
      *
      * @param context Context
      * @param apkFile APK 文件
-     * @return 是否成功
+     * @return 发布结果
      */
-    suspend fun releaseNewApk(context: Context, apkFile: File): Boolean {
+    suspend fun releaseNewApk(context: Context, apkFile: File): ReleaseResult {
         return VersionReleaseManager.releaseNewVersion(context, apkFile)
     }
 
