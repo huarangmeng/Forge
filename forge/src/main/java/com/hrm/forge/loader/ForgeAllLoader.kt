@@ -1,6 +1,7 @@
 package com.hrm.forge.loader
 
 import android.content.Context
+import com.hrm.forge.VersionStateManager
 import com.hrm.forge.common.DataSavingUtils
 import com.hrm.forge.common.FileUtil
 import com.hrm.forge.loader.instrumentation.ActivityInfoManager
@@ -62,7 +63,9 @@ object ForgeAllLoader {
                 val currentApkPath = DataSavingUtils.getString(KEY_CURRENT_APK_PATH)
 
                 if (currentVersion == null || currentApkPath == null) {
-                    Logger.i(TAG, "No new version to load")
+                    Logger.i(TAG, "No new version to load (may be rolled back to base version)")
+                    // 清除待重启标记（回滚到基础版本后重启的情况）
+                    VersionStateManager.clearPendingRestart()
                     return NO_NEW_VERSION
                 }
 
@@ -117,11 +120,11 @@ object ForgeAllLoader {
                     createApplicationLike(context, applicationLikeClassName)
                 }
 
-                // 标记加载成功
-                DataSavingUtils.putBoolean(KEY_LOAD_SUCCESS, true)
+                // 标记加载成功（使用 VersionStateManager）
+                VersionStateManager.markLoadSuccess()
                 isLoaded = true
 
-                Logger.i(TAG, "Load new APK success!")
+                Logger.i(TAG, "✅ Load new APK success!")
                 return LOAD_OK
 
             } catch (e: Exception) {

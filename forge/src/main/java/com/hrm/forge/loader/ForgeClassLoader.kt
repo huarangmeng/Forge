@@ -1,5 +1,6 @@
 package com.hrm.forge.loader
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.hrm.forge.common.ReflectionUtils
 import com.hrm.forge.common.UnZipUtils
@@ -29,6 +30,7 @@ object ForgeClassLoader {
      * @throws IOException 当文件操作失败时抛出
      * @throws ReflectiveOperationException 当反射操作失败时抛出
      */
+    @SuppressLint("SetWorldReadable", "SetWorldWritable")
     @Throws(IOException::class, ReflectiveOperationException::class)
     fun installDex(context: Context, apkFile: File) {
         Logger.i(TAG, "Start install DEX from: ${apkFile.absolutePath}")

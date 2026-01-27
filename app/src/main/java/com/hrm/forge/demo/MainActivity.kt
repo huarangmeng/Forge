@@ -100,20 +100,34 @@ fun MainScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "当前版本信息",
+                    text = "版本信息",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                InfoRow("基础版本", versionInfo.baseVersion)
-                InfoRow("基础版本号", versionInfo.baseVersionCode.toString())
+                // 基础版本信息
+                Text(
+                    text = "基础版本",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                InfoRow("版本名称", versionInfo.baseVersion)
+                InfoRow("版本号", versionInfo.baseVersionCode.toString())
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                InfoRow("当前版本", versionInfo.currentVersion)
-                InfoRow("当前版本号", versionInfo.currentVersionCode.toString())
+                // 当前运行版本
+                Text(
+                    text = "当前运行版本",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                InfoRow("版本名称", versionInfo.currentVersion)
+                InfoRow("版本号", versionInfo.currentVersionCode.toString())
 
                 if (versionInfo.isHotUpdateLoaded) {
                     Text(
@@ -125,7 +139,6 @@ fun MainScreen(
                     )
 
                     if (versionInfo.buildNumber != null) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         InfoRow("构建号", versionInfo.buildNumber.toString())
                     }
 
@@ -141,6 +154,28 @@ fun MainScreen(
                         text = "未加载热更新",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                // 下次启动版本（如果与当前不同）
+                if (versionInfo.hasPendingChange) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    
+                    Text(
+                        text = "下次启动版本（待生效）",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    InfoRow("版本名称", versionInfo.nextVersion)
+                    InfoRow("版本号", versionInfo.nextVersionCode.toString())
+                    
+                    Text(
+                        text = "⚠️ 需要重启应用才能生效",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
@@ -199,7 +234,7 @@ fun MainScreen(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isProcessing && versionInfo.isHotUpdateLoaded
+            enabled = !isProcessing && versionInfo.canRollback
         ) {
             Text("回滚到上一版本")
         }
@@ -369,13 +404,18 @@ fun MainScreen(
 
                 Text(
                     text = """
+                        版本管理：
                         • 基础版本：应用 APK 的原始版本
                         • 当前版本：实际运行的版本（热更新或基础）
                         • 未加载热更新时，当前版本 = 基础版本
                         • 加载热更新后，当前版本 = 热更新版本
                         • 构建号、APK路径、SHA1 仅在热更新时显示
+                        
+                        操作说明：
                         • 点击"从 Assets 加载热更新"可加载测试 APK
                         • 发布成功后需要重启应用才能生效
+                        • "回滚到上一版本"支持回滚到基础版本（清除热更新）
+                        • 首次加载热更新后，可回滚到未加载状态
                         
                         热更新测试：
                         • Activity 测试：启动未在主 APK 中注册的 Activity

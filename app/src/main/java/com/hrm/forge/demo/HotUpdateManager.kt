@@ -66,65 +66,7 @@ class HotUpdateManager(val context: Context) {
             }
         }
     }
-    
-    /**
-     * 从 URL 下载并发布新版本
-     * @param downloadUrl 下载地址
-     * @param version 版本号
-     * @param onProgress 下载进度回调
-     * @param callback 完成回调
-     */
-    fun downloadAndRelease(
-        downloadUrl: String,
-        version: String,
-        onProgress: (Int) -> Unit,
-        callback: (Boolean, String) -> Unit
-    ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                Log.i(TAG, "Start download APK from: $downloadUrl")
-                
-                // 1. 下载 APK
-                onProgress(0)
-                val apkFile = downloadApk(downloadUrl) { progress ->
-                    onProgress(progress)
-                }
-                
-                if (apkFile == null) {
-                    withContext(Dispatchers.Main) {
-                        callback(false, "Download failed")
-                    }
-                    return@launch
-                }
-                
-                Log.i(TAG, "Download success: ${apkFile.absolutePath}")
-                onProgress(100)
-                
-                // 2. 发布新版本
-                val success = Forge.releaseNewApk(
-                    context = context,
-                    apkFile = apkFile,
-                    version = version
-                )
-                
-                // 3. 切换到主线程回调
-                withContext(Dispatchers.Main) {
-                    if (success) {
-                        callback(true, "Release success! Please restart the app.")
-                    } else {
-                        callback(false, "Release failed!")
-                    }
-                }
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "Download and release exception", e)
-                withContext(Dispatchers.Main) {
-                    callback(false, "Error: ${e.message}")
-                }
-            }
-        }
-    }
-    
+
     /**
      * 回滚到上一个版本
      */
@@ -280,66 +222,6 @@ class HotUpdateManager(val context: Context) {
                 withContext(Dispatchers.Main) {
                     callback(false, msg)
                 }
-            }
-        }
-    }
-    
-    /**
-     * 下载 APK
-     * @param url 下载地址
-     * @param onProgress 进度回调
-     * @return APK 文件
-     */
-    private suspend fun downloadApk(
-        url: String,
-        onProgress: (Int) -> Unit
-    ): File? {
-        return withContext(Dispatchers.IO) {
-            try {
-                // TODO: 实际的下载逻辑
-                // 这里需要使用 OkHttp 或其他网络库实现
-                // 示例代码：
-                /*
-                val request = Request.Builder().url(url).build()
-                val response = okHttpClient.newCall(request).execute()
-                
-                if (!response.isSuccessful) {
-                    return@withContext null
-                }
-                
-                val destFile = File(context.cacheDir, "update.apk")
-                val contentLength = response.body?.contentLength() ?: 0
-                
-                response.body?.byteStream()?.use { input ->
-                    FileOutputStream(destFile).use { output ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Long = 0
-                        var len: Int
-                        
-                        while (input.read(buffer).also { len = it } != -1) {
-                            output.write(buffer, 0, len)
-                            bytesRead += len
-                            
-                            if (contentLength > 0) {
-                                val progress = (bytesRead * 100 / contentLength).toInt()
-                                withContext(Dispatchers.Main) {
-                                    onProgress(progress)
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                destFile
-                */
-                
-                // 临时返回 null，需要实现实际的下载逻辑
-                Log.w(TAG, "Download not implemented yet")
-                null
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "Download exception", e)
-                null
             }
         }
     }
