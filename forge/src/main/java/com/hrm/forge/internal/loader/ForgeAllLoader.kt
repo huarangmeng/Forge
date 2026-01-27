@@ -2,6 +2,7 @@ package com.hrm.forge.internal.loader
 
 import android.content.Context
 import com.hrm.forge.ForgeApplication
+import com.hrm.forge.ForgeApplicationDelegate
 import com.hrm.forge.internal.hook.ComponentManager
 import com.hrm.forge.internal.log.Logger
 import com.hrm.forge.internal.state.VersionStateManager
@@ -202,9 +203,7 @@ internal object ForgeAllLoader {
             val constructor = clazz.getConstructor(Context::class.java)
             val instance = constructor.newInstance(context)
 
-            if (context is ForgeApplication) {
-                context.setApplicationLike(instance)
-            }
+            ForgeApplicationDelegate.setApplicationLike(instance)
 
             Logger.i(TAG, "Create ApplicationLike success: $className")
         } catch (e: Exception) {

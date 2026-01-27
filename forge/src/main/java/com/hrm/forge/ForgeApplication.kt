@@ -2,18 +2,80 @@ package com.hrm.forge
 
 import android.app.Application
 import android.content.Context
-import com.hrm.forge.internal.util.DataStorage
-import com.hrm.forge.internal.hook.AMSHook
-import com.hrm.forge.internal.hook.InstrumentationHook
-import com.hrm.forge.internal.loader.ForgeAllLoader
 import com.hrm.forge.internal.log.Logger
 
 /**
- * Forge Application 基类
+ * Forge Application 基类（方案一：继承方案）
  * 
- * 使用方法：
- * 1. 让你的 Application 继承此类
- * 2. 实现 getApplicationLike() 方法返回实际的 ApplicationLike 类名
+ * ## 特点：
+ * - ✅ 最简单的集成方式，只需继承并返回 ApplicationLike 类名
+ * - ✅ SDK 自动处理所有生命周期转发
+ * - ✅ 无需手动调用任何方法
+ * 
+ * ## 使用方法：
+ * ```kotlin
+ * // 1. Application 类
+ * class MyApplication : ForgeApplication() {
+ *     override fun getApplicationLike(): String {
+ *         return "com.example.MyApplicationLike"
+ *     }
+ * }
+ * 
+ * // 2. ApplicationLike 类
+ * class MyApplicationLike(private val context: Context) {
+ *     fun onCreate() {
+ *         // ✅ 这里的代码会被热更新
+ *         initSDK()
+ *         UserManager.init()
+ *     }
+ * }
+ * 
+ * // 3. AndroidManifest.xml
+ * <application android:name=".MyApplication" ...>
+ * ```
+ * 
+ * ## 代码生效区间：
+ * 
+ * **会被热更新的代码**：
+ * - ✅ ApplicationLike 的所有代码
+ * - ✅ ApplicationLike 引用的所有业务类
+ * - ✅ Activity/Service/BroadcastReceiver 组件
+ * 
+ * **不会被热更新的代码**：
+ * - ❌ Application 类本身
+ * - ❌ Application.onCreate() 中直接调用的代码
+ * 
+ * ## 如果无法继承？
+ * 
+ * 如果项目已有 Application 基类无法继承，请使用方案二：
+ * ```kotlin
+ * class MyApplication : BaseApplication() {
+ *     override fun attachBaseContext(base: Context) {
+ *         super.attachBaseContext(base)
+ *         Forge.install(this, "com.example.MyApplicationLike")
+ *     }
+ *     
+ *     override fun onCreate() {
+ *         super.onCreate()
+ *         Forge.dispatchOnCreate()
+ *     }
+ *     
+ *     override fun onTerminate() {
+ *         super.onTerminate()
+ *         Forge.dispatchOnTerminate()
+ *     }
+ *     
+ *     override fun onLowMemory() {
+ *         super.onLowMemory()
+ *         Forge.dispatchOnLowMemory()
+ *     }
+ *     
+ *     override fun onTrimMemory(level: Int) {
+ *         super.onTrimMemory(level)
+ *         Forge.dispatchOnTrimMemory(level)
+ *     }
+ * }
+ * ```
  * 
  * 这是 Forge SDK 的公开 API
  */
@@ -21,107 +83,52 @@ abstract class ForgeApplication : Application() {
 
     private val TAG = "ForgeApplication"
 
-    companion object {
-        private var applicationLikeInstance: Any? = null
-
-        fun getApplicationLike(): Any? = applicationLikeInstance
-    }
-
     /**
-     * 子类需要实现此方法，返回实际 ApplicationLike 的类名
+     * 子类需要实现此方法，返回 ApplicationLike 的完整类名
+     * 
+     * @return ApplicationLike 的完整类名（必须提供）
      */
-    protected abstract fun getApplicationLike(): String?
+    protected abstract fun getApplicationLike(): String
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
-
-        // 初始化数据存储
-        DataStorage.init(base)
-
-        // Hook Instrumentation（必须在 Activity 启动之前）
-        // 支持占坑模式：启动未在 AndroidManifest 中注册的 Activity
-        InstrumentationHook.hookInstrumentation(this)
-
-        // Hook AMS（必须在 Service 启动之前）
-        // 支持占坑模式：启动未在 AndroidManifest 中注册的 Service
-        AMSHook.hookAMS(this)
-
-        // 加载新版本 APK
-        val loadResult = ForgeAllLoader.loadNewApk(
-            base,
-            getApplicationLike(),
-            base.applicationInfo.nativeLibraryDir
-        )
-
-        Logger.i(TAG, "Load result: $loadResult")
-
-        // 调用 ApplicationLike 的 attachBaseContext
-        invokeApplicationLikeMethod("attachBaseContext", Context::class.java, base)
+        
+        // SDK 负责初始化和生命周期管理
+        ForgeApplicationDelegate.install(this, base, getApplicationLike())
+        
+        // SDK 自动转发 attachBaseContext
+        ForgeApplicationDelegate.dispatchAttachBaseContext(base)
     }
 
     override fun onCreate() {
         super.onCreate()
         Logger.i(TAG, "Application onCreate")
 
-        // 调用 ApplicationLike 的 onCreate
-        invokeApplicationLikeMethod("onCreate")
+        // SDK 自动转发到 ApplicationLike
+        ForgeApplicationDelegate.dispatchOnCreate()
     }
 
     override fun onTerminate() {
         super.onTerminate()
         Logger.i(TAG, "Application onTerminate")
 
-        // 调用 ApplicationLike 的 onTerminate
-        invokeApplicationLikeMethod("onTerminate")
+        // SDK 自动转发到 ApplicationLike
+        ForgeApplicationDelegate.dispatchOnTerminate()
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
         Logger.i(TAG, "Application onLowMemory")
 
-        // 调用 ApplicationLike 的 onLowMemory
-        invokeApplicationLikeMethod("onLowMemory")
+        // SDK 自动转发到 ApplicationLike
+        ForgeApplicationDelegate.dispatchOnLowMemory()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         Logger.i(TAG, "Application onTrimMemory: $level")
 
-        // 调用 ApplicationLike 的 onTrimMemory
-        invokeApplicationLikeMethod("onTrimMemory", Int::class.java, level)
-    }
-
-    /**
-     * 通过反射调用 ApplicationLike 的方法
-     */
-    private fun invokeApplicationLikeMethod(
-        methodName: String,
-        parameterType: Class<*>? = null,
-        parameter: Any? = null
-    ) {
-        try {
-            val appLike = applicationLikeInstance ?: return
-            val clazz = appLike.javaClass
-
-            val method = if (parameterType != null) {
-                clazz.getMethod(methodName, parameterType)
-            } else {
-                clazz.getMethod(methodName)
-            }
-
-            if (parameter != null) {
-                method.invoke(appLike, parameter)
-            } else {
-                method.invoke(appLike)
-            }
-
-            Logger.d(TAG, "Invoke ApplicationLike.$methodName success")
-        } catch (e: Exception) {
-            Logger.e(TAG, "Invoke ApplicationLike.$methodName failed", e)
-        }
-    }
-
-    internal fun setApplicationLike(appLike: Any) {
-        applicationLikeInstance = appLike
+        // SDK 自动转发到 ApplicationLike
+        ForgeApplicationDelegate.dispatchOnTrimMemory(level)
     }
 }

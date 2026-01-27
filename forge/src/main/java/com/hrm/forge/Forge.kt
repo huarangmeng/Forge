@@ -5,7 +5,6 @@ import android.content.Context
 import com.hrm.forge.api.ILogger
 import com.hrm.forge.api.LogLevel
 import com.hrm.forge.api.VersionInfo
-import com.hrm.forge.internal.hook.InstrumentationHook
 import com.hrm.forge.internal.loader.ForgeAllLoader
 import com.hrm.forge.internal.log.Logger
 import com.hrm.forge.internal.release.VersionReleaseManager
@@ -17,45 +16,127 @@ import java.io.File
  *
  * 这是 Forge SDK 的唯一公开 API 入口点
  *
- * 使用方法：
- * 1. 让你的 Application 继承 ForgeApplication
- * 2. 实现 getApplicationLike() 方法返回实际的 ApplicationLike 类名
- * 3. 调用 Forge.init() 初始化（可选）
- * 4. 使用 Forge.releaseNewApk() 发布新版本
+ * ## 两种集成方案：
+ *
+ * ### 方案一：继承 ForgeApplication（推荐）
+ *
+ * ```kotlin
+ * class MyApplication : ForgeApplication() {
+ *     override fun getApplicationLike(): String {
+ *         return "com.example.MyApplicationLike"
+ *     }
+ * }
+ * ```
+ *
+ * **特点：** SDK 自动处理所有生命周期，无需手动调用
+ *
+ * ### 方案二：手动安装（已有基类时使用）
+ *
+ * ```kotlin
+ * class MyApplication : BaseApplication() {
+ *     override fun attachBaseContext(base: Context) {
+ *         super.attachBaseContext(base)
+ *         Forge.install(this, "com.example.MyApplicationLike")
+ *     }
+ *
+ *     override fun onCreate() {
+ *         super.onCreate()
+ *         Forge.dispatchOnCreate()
+ *     }
+ *
+ *     override fun onTerminate() {
+ *         super.onTerminate()
+ *         Forge.dispatchOnTerminate()
+ *     }
+ *
+ *     override fun onLowMemory() {
+ *         super.onLowMemory()
+ *         Forge.dispatchOnLowMemory()
+ *     }
+ *
+ *     override fun onTrimMemory(level: Int) {
+ *         super.onTrimMemory(level)
+ *         Forge.dispatchOnTrimMemory(level)
+ *     }
+ * }
+ * ```
+ *
+ * **特点：** 不需要继承，需要手动转发生命周期（但 SDK 会自动处理 ApplicationLike）
+ *
+ * ## 两种方案的区别：
+ *
+ * | 特性 | 方案一（继承） | 方案二（安装） |
+ * |------|--------------|--------------|
+ * | 继承要求 | 必须继承 ForgeApplication | 可以继承任意 Application |
+ * | 生命周期转发 | SDK 自动处理 | 需要手动调用 dispatch 方法 |
+ * | ApplicationLike 管理 | SDK 自动管理 | SDK 自动管理 |
+ * | 代码量 | 最少 | 略多 |
+ * | 推荐场景 | 新项目 | 已有 Application 基类 |
+ *
+ * ## 核心原则：
+ *
+ * 无论使用哪种方案，ApplicationLike 的生命周期都由 SDK 自动管理，
+ * 用户不需要手动调用 ApplicationLike 的方法。
  */
 object Forge {
 
-    private const val TAG = "Forge"
-
-    @Volatile
-    private var isInitialized = false
-
     /**
-     * 初始化 Forge
+     * 安装 Forge（方案二：手动安装）
      *
-     * 注意：如果使用 ForgeApplication，无需手动调用此方法
+     * 在 Application.attachBaseContext 中调用此方法
+     *
+     * ⚠️ 注意：使用此方案后，需要在 Application 的所有生命周期方法中
+     * 手动调用对应的 dispatch 方法，例如：
+     * - onCreate() → Forge.dispatchOnCreate()
+     * - onTerminate() → Forge.dispatchOnTerminate()
+     * - onLowMemory() → Forge.dispatchOnLowMemory()
+     * - onTrimMemory(level) → Forge.dispatchOnTrimMemory(level)
      *
      * @param application Application 实例
+     * @param applicationLikeClassName ApplicationLike 类名（必须提供）
      */
-    fun init(application: Application) {
-        if (isInitialized) {
-            Logger.w(TAG, "Already initialized")
-            return
-        }
+    fun install(application: Application, applicationLikeClassName: String) {
+        val context = application.baseContext ?: application
+        ForgeApplicationDelegate.install(application, context, applicationLikeClassName)
 
-        synchronized(this) {
-            if (isInitialized) {
-                return
-            }
+        // 立即转发 attachBaseContext
+        ForgeApplicationDelegate.dispatchAttachBaseContext(context)
+    }
 
-            Logger.i(TAG, "Initializing Forge...")
+    /**
+     * 分发 onCreate 到 ApplicationLike
+     *
+     * 在 Application.onCreate() 中调用
+     */
+    fun dispatchOnCreate() {
+        ForgeApplicationDelegate.dispatchOnCreate()
+    }
 
-            // Hook Instrumentation
-            InstrumentationHook.hookInstrumentation(application)
+    /**
+     * 分发 onTerminate 到 ApplicationLike
+     *
+     * 在 Application.onTerminate() 中调用
+     */
+    fun dispatchOnTerminate() {
+        ForgeApplicationDelegate.dispatchOnTerminate()
+    }
 
-            isInitialized = true
-            Logger.i(TAG, "Forge initialized")
-        }
+    /**
+     * 分发 onLowMemory 到 ApplicationLike
+     *
+     * 在 Application.onLowMemory() 中调用
+     */
+    fun dispatchOnLowMemory() {
+        ForgeApplicationDelegate.dispatchOnLowMemory()
+    }
+
+    /**
+     * 分发 onTrimMemory 到 ApplicationLike
+     *
+     * 在 Application.onTrimMemory(level) 中调用
+     */
+    fun dispatchOnTrimMemory(level: Int) {
+        ForgeApplicationDelegate.dispatchOnTrimMemory(level)
     }
 
     /**
