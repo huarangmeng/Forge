@@ -1,6 +1,6 @@
-package com.hrm.forge.common
+package com.hrm.forge.internal.util
 
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -10,7 +10,7 @@ import java.security.MessageDigest
 /**
  * 文件工具类
  */
-object FileUtil {
+internal object FileUtils {
     private const val TAG = "FileUtil"
     
     /**

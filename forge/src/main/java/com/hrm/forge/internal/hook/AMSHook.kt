@@ -1,8 +1,8 @@
-package com.hrm.forge.loader.instrumentation
+package com.hrm.forge.internal.hook
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
@@ -22,7 +22,7 @@ import java.lang.reflect.Proxy
  * 1. 此类必须在应用启动早期调用（在 attachBaseContext 中）
  * 2. 此类不能被混淆
  */
-object AMSHookHelper {
+internal object AMSHook {
     
     private const val TAG = "AMSHookHelper"
     
@@ -198,7 +198,7 @@ object AMSHookHelper {
                 if (args != null && args.size >= 2) {
                     val intent = args[1] as? android.content.Intent
                     if (intent != null) {
-                        ServiceHelper.processStartServiceIntent(context, intent)
+                        ComponentManager.processStartServiceIntent(context, intent)
                     }
                 }
                 
@@ -227,7 +227,7 @@ object AMSHookHelper {
                 if (args != null && args.size >= 3) {
                     val intent = args[2] as? android.content.Intent
                     if (intent != null) {
-                        ServiceHelper.processBindServiceIntent(context, intent)
+                        ComponentManager.processBindServiceIntent(context, intent)
                     }
                 }
                 

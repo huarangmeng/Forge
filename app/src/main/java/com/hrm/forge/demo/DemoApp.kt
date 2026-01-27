@@ -2,8 +2,8 @@ package com.hrm.forge.demo
 
 import android.util.Log
 import com.hrm.forge.Forge
-import com.hrm.forge.loader.ForgeApplication
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.ForgeApplication
+import com.hrm.forge.api.LogLevel
 
 /**
  * Demo Application
@@ -33,7 +33,7 @@ class DemoApp : ForgeApplication() {
         Forge.init(this)
 
         // 设置日志级别
-        Forge.setLogLevel(Logger.LogLevel.DEBUG)
+        Forge.setLogLevel(LogLevel.DEBUG)
 
         // 打印版本信息
         val versionInfo = Forge.getCurrentVersionInfo(this)

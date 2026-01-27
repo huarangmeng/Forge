@@ -1,11 +1,11 @@
-package com.hrm.forge.loader
+package com.hrm.forge.internal.loader
 
 import android.content.Context
 import android.os.Build
-import com.hrm.forge.common.Constants
-import com.hrm.forge.common.FileUtil
-import com.hrm.forge.common.ReflectionUtils
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.util.Constants
+import com.hrm.forge.internal.util.FileUtils
+import com.hrm.forge.internal.util.ReflectionUtils
+import com.hrm.forge.internal.log.Logger
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -16,7 +16,7 @@ import java.util.zip.ZipFile
  * 
  * 仅支持 arm64-v8a 架构（ARM 64位）
  */
-object ForgeLoadLibrary {
+internal object NativeLibraryLoader {
     private const val TAG = "ForgeLoadLibrary"
     
     /**
@@ -128,7 +128,7 @@ object ForgeLoadLibrary {
                     var needExtract = true
                     if (soFile.exists()) {
                         val newSha1 = calculateZipEntrySHA1(zip, entry)
-                        val oldSha1 = FileUtil.getFileSHA1(soFile)
+                        val oldSha1 = FileUtils.getFileSHA1(soFile)
                         
                         if (newSha1 != null && oldSha1 != null && newSha1 == oldSha1) {
                             Logger.d(TAG, "SO file unchanged, skip: $soName")

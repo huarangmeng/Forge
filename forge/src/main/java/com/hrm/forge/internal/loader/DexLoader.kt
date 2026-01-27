@@ -1,10 +1,10 @@
-package com.hrm.forge.loader
+package com.hrm.forge.internal.loader
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.hrm.forge.common.ReflectionUtils
-import com.hrm.forge.common.UnZipUtils
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.util.ReflectionUtils
+import com.hrm.forge.internal.util.UnZipUtils
+import com.hrm.forge.internal.log.Logger
 import dalvik.system.DexClassLoader
 import java.io.File
 import java.io.IOException
@@ -20,7 +20,7 @@ import java.lang.reflect.Array as ReflectArray
  * - 支持多 DEX 加载
  * - 兼容不同 Android 版本
  */
-object ForgeClassLoader {
+internal object DexLoader {
     private const val TAG = "ForgeClassLoader"
 
     /**

@@ -1,9 +1,9 @@
-package com.hrm.forge.loader.instrumentation
+package com.hrm.forge.internal.hook
 
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 
 /**
  * 占坑 Service
@@ -19,7 +19,7 @@ import com.hrm.forge.logger.Logger
  * 1. 必须在主 APK 的 AndroidManifest.xml 中注册
  * 2. 此类不能被混淆
  */
-class StubService : Service() {
+internal class StubService : Service() {
     
     private val TAG = "StubService"
     
@@ -39,7 +39,7 @@ class StubService : Service() {
     private fun createRealService(intent: Intent?): Service? {
         try {
             // 从 Intent 获取真实 Service 类名
-            val realClassName = intent?.getStringExtra(ServiceHelper.KEY_REAL_SERVICE)
+            val realClassName = intent?.getStringExtra(ComponentManager.KEY_REAL_SERVICE)
             
             if (realClassName.isNullOrEmpty()) {
                 Logger.e(TAG, "Real service class name is null or empty")

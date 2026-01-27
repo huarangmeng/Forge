@@ -1,10 +1,10 @@
-package com.hrm.forge.common
+package com.hrm.forge.internal.util
 
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 import java.io.File
 
 /**
@@ -12,7 +12,7 @@ import java.io.File
  * 
  * 提供 APK 文件的信息获取和验证功能
  */
-object ApkUtils {
+internal object ApkUtils {
     private const val TAG = "ApkUtils"
     
     /**

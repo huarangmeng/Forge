@@ -1,9 +1,9 @@
-package com.hrm.forge.common
+package com.hrm.forge.internal.util
 
 /**
  * 全局常量定义
  */
-object Constants {
+internal object Constants {
     // SharedPreferences Keys - 版本管理
     const val KEY_CURRENT_VERSION = "forge_current_version"
     const val KEY_VERSION_SHA1 = "forge_version_sha1"

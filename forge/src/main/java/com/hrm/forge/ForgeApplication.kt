@@ -1,15 +1,21 @@
-package com.hrm.forge.loader
+package com.hrm.forge
 
 import android.app.Application
 import android.content.Context
-import com.hrm.forge.common.DataSavingUtils
-import com.hrm.forge.loader.instrumentation.AMSHookHelper
-import com.hrm.forge.loader.instrumentation.HookHelper
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.util.DataStorage
+import com.hrm.forge.internal.hook.AMSHook
+import com.hrm.forge.internal.hook.InstrumentationHook
+import com.hrm.forge.internal.loader.ForgeAllLoader
+import com.hrm.forge.internal.log.Logger
 
 /**
  * Forge Application 基类
- * 继承此类并实现 getApplicationLike() 方法
+ * 
+ * 使用方法：
+ * 1. 让你的 Application 继承此类
+ * 2. 实现 getApplicationLike() 方法返回实际的 ApplicationLike 类名
+ * 
+ * 这是 Forge SDK 的公开 API
  */
 abstract class ForgeApplication : Application() {
 
@@ -30,15 +36,15 @@ abstract class ForgeApplication : Application() {
         super.attachBaseContext(base)
 
         // 初始化数据存储
-        DataSavingUtils.init(base)
+        DataStorage.init(base)
 
         // Hook Instrumentation（必须在 Activity 启动之前）
         // 支持占坑模式：启动未在 AndroidManifest 中注册的 Activity
-        HookHelper.hookInstrumentation(this)
+        InstrumentationHook.hookInstrumentation(this)
 
         // Hook AMS（必须在 Service 启动之前）
         // 支持占坑模式：启动未在 AndroidManifest 中注册的 Service
-        AMSHookHelper.hookAMS(this)
+        AMSHook.hookAMS(this)
 
         // 加载新版本 APK
         val loadResult = ForgeAllLoader.loadNewApk(

@@ -1,16 +1,16 @@
-package com.hrm.forge.loader.instrumentation
+package com.hrm.forge.internal.hook
 
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Application
 import android.app.Instrumentation
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 
 /**
  * Hook 辅助类
  * 用于替换系统的 Instrumentation
  */
-object HookHelper {
+internal object InstrumentationHook {
     private const val TAG = "HookHelper"
     
     /**

@@ -1,38 +1,58 @@
-package com.hrm.forge.release
+package com.hrm.forge.internal.release
 
 import android.content.Context
-import com.hrm.forge.VersionStateManager
-import com.hrm.forge.common.ApkUtils
-import com.hrm.forge.common.Constants
-import com.hrm.forge.common.FileUtil
-import com.hrm.forge.common.UnZipUtils
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.state.VersionStateManager
+import com.hrm.forge.internal.util.ApkUtils
+import com.hrm.forge.internal.util.Constants
+import com.hrm.forge.internal.util.FileUtils
+import com.hrm.forge.internal.util.UnZipUtils
+import com.hrm.forge.internal.log.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
 /**
- * 版本发布管理器
+ * 版本发布管理器（内部实现）
  *
  * 负责新版本 APK 的发布流程：
  * - APK 验证（包名 + 签名）
  * - APK 安装（复制到版本目录）
  * - APK 优化（DEX 预加载、解压）
  * - 旧版本清理
+ * 
+ * @hide 此类仅供内部使用，不对外暴露
  */
-object VersionReleaseManager {
+internal object VersionReleaseManager {
     private const val TAG = "VersionReleaseManager"
 
     /**
-     * 发布新版本 APK
+     * 发布新版本 APK（自动从 APK 读取版本号）
+     *
+     * @param context Context
+     * @param apkFile 新版本 APK 文件
+     * @return 是否成功
+     */
+    suspend fun releaseNewVersion(context: Context, apkFile: File): Boolean {
+        // 从 APK 读取版本号
+        val version = ApkUtils.getVersionName(context, apkFile.absolutePath)
+        if (version.isNullOrEmpty()) {
+            Logger.e(TAG, "Cannot read version from APK: ${apkFile.absolutePath}")
+            return false
+        }
+        
+        return releaseNewVersion(context, apkFile, version)
+    }
+
+    /**
+     * 发布新版本 APK（指定版本号）
      *
      * @param context Context
      * @param apkFile 新版本 APK 文件
      * @param version 版本号
      * @return 是否成功
      */
-    suspend fun releaseNewVersion(context: Context, apkFile: File, version: String): Boolean {
+    internal suspend fun releaseNewVersion(context: Context, apkFile: File, version: String): Boolean {
         return withContext(Dispatchers.IO) {
             Logger.i(TAG, "Start release new version: $version, path=${apkFile.absolutePath}")
 
@@ -116,14 +136,14 @@ object VersionReleaseManager {
     private fun installApk(context: Context, apkFile: File, version: String): Pair<File, String>? {
         // 创建版本目录（以版本号命名）
         val versionDir = VersionStateManager.getVersionDir(context, version)
-        if (!FileUtil.ensureDir(versionDir)) {
+        if (!FileUtils.ensureDir(versionDir)) {
             Logger.e(TAG, "Cannot create version dir: ${versionDir.absolutePath}")
             return null
         }
 
         // 复制 APK 到版本目录
         val destApkFile = File(versionDir, "base.apk")
-        if (!FileUtil.copyFile(apkFile, destApkFile)) {
+        if (!FileUtils.copyFile(apkFile, destApkFile)) {
             Logger.e(TAG, "Copy APK failed")
             return null
         }
@@ -131,7 +151,7 @@ object VersionReleaseManager {
         Logger.i(TAG, "✓ APK copied to: ${destApkFile.absolutePath}")
 
         // 计算 SHA1 校验值
-        val sha1 = FileUtil.getFileSHA1(destApkFile)
+        val sha1 = FileUtils.getFileSHA1(destApkFile)
         if (sha1 == null) {
             Logger.e(TAG, "Calculate SHA1 failed")
             return null
@@ -218,7 +238,7 @@ object VersionReleaseManager {
             sortedDirs.drop(Constants.MAX_VERSION_RETENTION).forEach { dir ->
                 // 不要删除当前版本和上一个版本
                 if (dir.name != currentVersion && dir.name != versionState.previousVersion) {
-                    FileUtil.deleteRecursively(dir)
+                    FileUtils.deleteRecursively(dir)
                     Logger.i(TAG, "  Deleted old version: ${dir.name}")
                     cleanedCount++
                 }

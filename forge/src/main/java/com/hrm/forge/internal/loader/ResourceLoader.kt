@@ -1,18 +1,18 @@
-package com.hrm.forge.loader
+package com.hrm.forge.internal.loader
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.AssetManager
 import android.content.res.Resources
 import android.os.Build
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 import java.lang.reflect.Method
 
 /**
  * 资源动态加载器
  * 通过反射替换 AssetManager 实现资源热更新
  */
-object ForgeResourceLoader {
+internal object ResourceLoader {
     private const val TAG = "ForgeResourceLoader"
     
     @Volatile

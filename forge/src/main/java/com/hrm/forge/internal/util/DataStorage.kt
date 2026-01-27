@@ -1,8 +1,8 @@
-package com.hrm.forge.common
+package com.hrm.forge.internal.util
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 import java.io.File
 
 /**
@@ -10,7 +10,7 @@ import java.io.File
  * 
  * 使用前必须调用 [init] 方法进行初始化
  */
-object DataSavingUtils {
+internal object DataStorage {
     private const val TAG = "DataSavingUtils"
     private const val PREFS_NAME = "forge_prefs"
     
@@ -39,7 +39,7 @@ object DataSavingUtils {
      */
     private fun ensureInitialized(): Boolean {
         if (prefs == null) {
-            Logger.e(TAG, "DataSavingUtils not initialized! Please call init() first.")
+            Logger.e(TAG, "DataStorage not initialized! Please call init() first.")
             return false
         }
         return true

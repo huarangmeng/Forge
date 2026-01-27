@@ -1,4 +1,4 @@
-package com.hrm.forge.common
+package com.hrm.forge.internal.util
 
 import java.lang.reflect.Field
 
@@ -6,7 +6,7 @@ import java.lang.reflect.Field
  * 反射工具类
  * 提供通用的反射操作方法
  */
-object ReflectionUtils {
+internal object ReflectionUtils {
     
     /**
      * 从 ClassLoader 及其父类中查找指定的 Field

@@ -1,20 +1,19 @@
-package com.hrm.forge.loader
+package com.hrm.forge.internal.loader
 
 import android.content.Context
-import com.hrm.forge.VersionStateManager
-import com.hrm.forge.common.DataSavingUtils
-import com.hrm.forge.common.FileUtil
-import com.hrm.forge.loader.instrumentation.ActivityInfoManager
-import com.hrm.forge.loader.instrumentation.ComponentInfoManager
-import com.hrm.forge.loader.instrumentation.ServiceHelper
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.ForgeApplication
+import com.hrm.forge.internal.hook.ComponentManager
+import com.hrm.forge.internal.log.Logger
+import com.hrm.forge.internal.state.VersionStateManager
+import com.hrm.forge.internal.util.DataStorage
+import com.hrm.forge.internal.util.FileUtils
 import java.io.File
 
 /**
  * Forge 核心加载器
  * 负责协调 DEX、资源、SO 的加载
  */
-object ForgeAllLoader {
+internal object ForgeAllLoader {
     private const val TAG = "ForgeAllLoader"
 
     // 存储键
@@ -59,8 +58,8 @@ object ForgeAllLoader {
 
             try {
                 // 检查是否有新版本
-                val currentVersion = DataSavingUtils.getString(KEY_CURRENT_VERSION)
-                val currentApkPath = DataSavingUtils.getString(KEY_CURRENT_APK_PATH)
+                val currentVersion = DataStorage.getString(KEY_CURRENT_VERSION)
+                val currentApkPath = DataStorage.getString(KEY_CURRENT_APK_PATH)
 
                 if (currentVersion == null || currentApkPath == null) {
                     Logger.i(TAG, "No new version to load (may be rolled back to base version)")
@@ -113,7 +112,7 @@ object ForgeAllLoader {
                 }
 
                 // 5. 初始化组件信息管理器（一次性解析 Activity 和 Service）
-                ComponentInfoManager.init(context, apkFile.absolutePath)
+                ComponentManager.init(context, apkFile.absolutePath)
 
                 // 6. 创建 ApplicationLike 实例
                 if (!applicationLikeClassName.isNullOrEmpty()) {
@@ -142,14 +141,14 @@ object ForgeAllLoader {
         Logger.i(TAG, "Verifying new version: $version")
 
         // 计算 SHA1
-        val sha1 = FileUtil.getFileSHA1(apkFile)
+        val sha1 = FileUtils.getFileSHA1(apkFile)
         if (sha1 == null) {
             Logger.e(TAG, "Calculate SHA1 failed")
             return FAIL_VERIFY
         }
 
         // 保存 SHA1
-        DataSavingUtils.putString("forge_apk_sha1_$version", sha1)
+        DataStorage.putString("forge_apk_sha1_$version", sha1)
 
         Logger.i(TAG, "Verify success, SHA1: $sha1")
         return LOAD_OK
@@ -160,7 +159,7 @@ object ForgeAllLoader {
      */
     private fun loadNewDex(context: Context, apkFile: File): Int {
         return try {
-            ForgeClassLoader.installDex(context, apkFile)
+            DexLoader.installDex(context, apkFile)
             LOAD_OK
         } catch (e: Exception) {
             Logger.e(TAG, "Load DEX exception", e)
@@ -173,7 +172,7 @@ object ForgeAllLoader {
      */
     private fun loadNewResource(context: Context, apkFile: File): Int {
         return try {
-            ForgeResourceLoader.loadResources(context, apkFile.absolutePath)
+            ResourceLoader.loadResources(context, apkFile.absolutePath)
             LOAD_OK
         } catch (e: Exception) {
             Logger.e(TAG, "Load resource exception", e)
@@ -186,7 +185,7 @@ object ForgeAllLoader {
      */
     private fun loadNewSo(context: Context, apkFile: File, nativeLibraryDir: String): Int {
         return try {
-            ForgeLoadLibrary.installNativeLibrary(context, apkFile, nativeLibraryDir)
+            NativeLibraryLoader.installNativeLibrary(context, apkFile, nativeLibraryDir)
             LOAD_OK
         } catch (e: Exception) {
             Logger.e(TAG, "Load SO exception", e)
@@ -220,16 +219,16 @@ object ForgeAllLoader {
         Logger.w(TAG, "Handle load failed, try to rollback")
 
         // 标记加载失败
-        DataSavingUtils.putBoolean(KEY_LOAD_SUCCESS, false)
+        DataStorage.putBoolean(KEY_LOAD_SUCCESS, false)
 
         // 尝试回滚到上一个版本
-        val lastVersion = DataSavingUtils.getString(KEY_LAST_VERSION)
-        val lastApkPath = DataSavingUtils.getString(KEY_LAST_APK_PATH)
+        val lastVersion = DataStorage.getString(KEY_LAST_VERSION)
+        val lastApkPath = DataStorage.getString(KEY_LAST_APK_PATH)
 
         if (lastVersion != null && lastApkPath != null) {
             Logger.i(TAG, "Rollback to last version: $lastVersion")
-            DataSavingUtils.putString(KEY_CURRENT_VERSION, lastVersion)
-            DataSavingUtils.putString(KEY_CURRENT_APK_PATH, lastApkPath)
+            DataStorage.putString(KEY_CURRENT_VERSION, lastVersion)
+            DataStorage.putString(KEY_CURRENT_APK_PATH, lastApkPath)
         }
     }
 
@@ -237,7 +236,7 @@ object ForgeAllLoader {
      * 获取当前版本
      */
     fun getCurrentVersion(): String? {
-        return DataSavingUtils.getString(KEY_CURRENT_VERSION)
+        return DataStorage.getString(KEY_CURRENT_VERSION)
     }
 
     /**

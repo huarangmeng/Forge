@@ -1,21 +1,19 @@
-package com.hrm.forge.logger
+package com.hrm.forge.internal.log
 
 import android.util.Log
+import com.hrm.forge.api.ILogger
+import com.hrm.forge.api.LogLevel
 
 /**
  * Forge 日志系统
  */
-object Logger {
+internal object Logger {
     private const val TAG = "Forge"
     private var logImpl: ILogger = DefaultLogger()
     
     @Volatile
     private var logLevel = LogLevel.INFO
-    
-    enum class LogLevel {
-        VERBOSE, DEBUG, INFO, WARN, ERROR, NONE
-    }
-    
+
     fun setLogger(logger: ILogger) {
         logImpl = logger
     }
@@ -83,12 +81,4 @@ object Logger {
             }
         }
     }
-}
-
-interface ILogger {
-    fun v(tag: String, msg: String)
-    fun d(tag: String, msg: String)
-    fun i(tag: String, msg: String)
-    fun w(tag: String, msg: String, tr: Throwable? = null)
-    fun e(tag: String, msg: String, tr: Throwable? = null)
 }

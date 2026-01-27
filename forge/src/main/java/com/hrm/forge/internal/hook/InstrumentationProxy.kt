@@ -1,4 +1,4 @@
-package com.hrm.forge.loader.instrumentation
+package com.hrm.forge.internal.hook
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.IBinder
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 
 /**
  * Instrumentation 代理
@@ -21,7 +21,7 @@ import com.hrm.forge.logger.Logger
  * - execStartActivity: Hook Activity 启动，未注册的 Activity 替换为占坑 Activity
  * - newActivity: Hook Activity 创建，将占坑 Activity 替换回真实 Activity
  */
-class InstrumentationProxy(private val base: Instrumentation) : Instrumentation() {
+internal class InstrumentationProxy(private val base: Instrumentation) : Instrumentation() {
 
     private val TAG = "InstrumentationProxy"
 
@@ -61,13 +61,13 @@ class InstrumentationProxy(private val base: Instrumentation) : Instrumentation(
 
             // 检查目标 Activity 是否已注册
             if (targetClass != null && who != null) {
-                val isRegisteredInMain = ActivityInfoManager.isActivityRegisteredInMain(targetClass)
+                val isRegisteredInMain = ComponentManager.isActivityRegisteredInMain(targetClass)
 
                 if (!isRegisteredInMain) {
                     Logger.i(TAG, "⚠️ Activity not registered in main APK: $targetClass")
 
                     // 检查是否在热更新 APK 中存在
-                    val isInHotUpdate = ActivityInfoManager.isActivityInHotUpdate(targetClass)
+                    val isInHotUpdate = ComponentManager.isActivityInHotUpdate(targetClass)
 
                     if (isInHotUpdate) {
                         Logger.i(TAG, "✅ Activity found in hot update APK")
@@ -78,7 +78,7 @@ class InstrumentationProxy(private val base: Instrumentation) : Instrumentation(
 
                         // 根据启动模式选择对应的占坑 Activity
                         val stubActivity =
-                            ActivityInfoManager.getStubActivityForRealActivity(targetClass)
+                            ComponentManager.getStubActivityForRealActivity(targetClass)
                         val stubComponent = ComponentName(who.packageName, stubActivity)
                         intent.component = stubComponent
 

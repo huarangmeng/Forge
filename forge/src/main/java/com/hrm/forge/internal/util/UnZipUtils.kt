@@ -1,6 +1,6 @@
-package com.hrm.forge.common
+package com.hrm.forge.internal.util
 
-import com.hrm.forge.logger.Logger
+import com.hrm.forge.internal.log.Logger
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -11,7 +11,7 @@ import java.util.zip.ZipFile
  *
  * 提供安全的 ZIP 文件解压功能，防止路径穿越攻击
  */
-object UnZipUtils {
+internal object UnZipUtils {
     private const val TAG = "UnZipUtils"
 
     /**
@@ -47,7 +47,7 @@ object UnZipUtils {
         }
 
         return try {
-            if (!FileUtil.ensureDir(destDir)) {
+            if (!FileUtils.ensureDir(destDir)) {
                 Logger.e(TAG, "Cannot create dest dir: ${destDir.absolutePath}")
                 return false
             }
@@ -157,7 +157,7 @@ object UnZipUtils {
         }
         
         try {
-            if (!FileUtil.ensureDir(destDir)) {
+            if (!FileUtils.ensureDir(destDir)) {
                 Logger.e(TAG, "Cannot create dest dir: ${destDir.absolutePath}")
                 return dexFiles
             }

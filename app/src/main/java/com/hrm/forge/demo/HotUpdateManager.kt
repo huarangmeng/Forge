@@ -3,6 +3,7 @@ package com.hrm.forge.demo
 import android.content.Context
 import android.util.Log
 import com.hrm.forge.Forge
+import com.hrm.forge.api.VersionInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,19 +21,17 @@ class HotUpdateManager(val context: Context) {
     }
     
     /**
-     * 发布新版本
+     * 发布新版本（自动从 APK 读取版本号）
      * @param apkFilePath APK 文件路径
-     * @param version 版本号
      * @param callback 回调
      */
     fun releaseNewVersion(
         apkFilePath: String,
-        version: String,
         callback: (Boolean, String) -> Unit
     ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                Log.i(TAG, "Start release new version: $version")
+                Log.i(TAG, "Start release new version from: $apkFilePath")
                 
                 val apkFile = File(apkFilePath)
                 if (!apkFile.exists()) {
@@ -42,11 +41,10 @@ class HotUpdateManager(val context: Context) {
                     return@launch
                 }
                 
-                // 发布新版本
+                // 发布新版本（自动读取版本号）
                 val success = Forge.releaseNewApk(
                     context = context,
-                    apkFile = apkFile,
-                    version = version
+                    apkFile = apkFile
                 )
                 
                 if (success) {
@@ -118,7 +116,7 @@ class HotUpdateManager(val context: Context) {
     /**
      * 获取版本信息
      */
-    fun getVersionInfo(): Forge.VersionInfo {
+    fun getVersionInfo(): VersionInfo {
         return Forge.getCurrentVersionInfo(context)
     }
     
@@ -147,7 +145,7 @@ class HotUpdateManager(val context: Context) {
     }
     
     /**
-     * 从 Assets 加载 APK 并发布
+     * 从 Assets 加载 APK 并发布（自动读取版本号）
      * @param assetFileName Assets 中的 APK 文件名（例如：app-debug.apk）
      * @param callback 回调
      */
@@ -179,34 +177,16 @@ class HotUpdateManager(val context: Context) {
                 
                 Log.i(TAG, "Copy success: ${destFile.absolutePath}, size: ${destFile.length()}")
                 
-                // 2. 从 APK 中读取版本信息
-                val versionName = com.hrm.forge.common.ApkUtils.getVersionName(
-                    context,
-                    destFile.absolutePath
-                )
-                
-                if (versionName.isNullOrEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        val msg = "Failed to read version from APK: $assetFileName"
-                        Log.e(TAG, msg)
-                        callback(false, msg)
-                    }
-                    return@launch
-                }
-                
-                Log.i(TAG, "APK version: $versionName")
-                
-                // 3. 发布新版本
+                // 2. 发布新版本（自动读取版本号）
                 val success = Forge.releaseNewApk(
                     context = context,
-                    apkFile = destFile,
-                    version = versionName
+                    apkFile = destFile
                 )
                 
-                // 4. 切换到主线程回调
+                // 3. 切换到主线程回调
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        val msg = "Release success! Version: $versionName. Please restart the app."
+                        val msg = "Release success! Please restart the app."
                         Log.i(TAG, msg)
                         callback(true, msg)
                     } else {
