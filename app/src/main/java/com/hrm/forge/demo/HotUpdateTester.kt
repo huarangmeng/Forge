@@ -242,6 +242,88 @@ object HotUpdateTester {
             false
         }
     }
+    
+    /**
+     * 测试 ContentProvider 查询操作
+     * 
+     * @param context 上下文
+     * @param authority ContentProvider 的 Authority
+     * @param path 查询路径（可选，如 "users"）
+     * @return 是否成功
+     */
+    fun testQueryProvider(context: Context, authority: String, path: String? = null): Boolean {
+        return try {
+            Log.i(TAG, "Testing query provider: $authority${path?.let { "/$it" } ?: ""}")
+            
+            val uri = if (path != null) {
+                android.net.Uri.parse("content://$authority/$path")
+            } else {
+                android.net.Uri.parse("content://$authority")
+            }
+            
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            
+            if (cursor != null) {
+                val count = cursor.count
+                val columns = cursor.columnNames.joinToString()
+                cursor.close()
+                
+                Log.i(TAG, "Query successful: $count rows, columns: [$columns]")
+                showToast(context, "✅ 查询成功：$count 行数据")
+                true
+            } else {
+                Log.w(TAG, "Query returned null cursor")
+                showToast(context, "⚠️ 查询返回空")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to query provider: $authority", e)
+            showToast(context, "❌ 查询失败：${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * 测试 ContentProvider 插入操作
+     * 
+     * @param context 上下文
+     * @param authority ContentProvider 的 Authority
+     * @param path 插入路径（可选，如 "users"）
+     * @return 是否成功
+     */
+    fun testInsertProvider(context: Context, authority: String, path: String? = null): Boolean {
+        return try {
+            Log.i(TAG, "Testing insert provider: $authority${path?.let { "/$it" } ?: ""}")
+            
+            val uri = if (path != null) {
+                android.net.Uri.parse("content://$authority/$path")
+            } else {
+                android.net.Uri.parse("content://$authority")
+            }
+            
+            val values = android.content.ContentValues().apply {
+                put("name", "Test User ${System.currentTimeMillis()}")
+                put("age", 25)
+                put("timestamp", System.currentTimeMillis())
+            }
+            
+            val resultUri = context.contentResolver.insert(uri, values)
+            
+            if (resultUri != null) {
+                Log.i(TAG, "Insert successful: $resultUri")
+                showToast(context, "✅ 插入成功：$resultUri")
+                true
+            } else {
+                Log.w(TAG, "Insert returned null uri")
+                showToast(context, "⚠️ 插入返回空")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to insert provider: $authority", e)
+            showToast(context, "❌ 插入失败：${e.message}")
+            false
+        }
+    }
 
     private fun showToast(context: Context, message: String) {
         android.os.Handler(android.os.Looper.getMainLooper()).post {

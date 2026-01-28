@@ -503,6 +503,100 @@ fun MainScreen(
             }
         }
 
+        // ContentProvider 测试卡片
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "📦 ContentProvider 测试",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                
+                Text(
+                    text = "测试热更新 APK 中新增的 ContentProvider（查看 Logcat 日志验证）",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+                
+                // 查询所有用户
+                Button(
+                    onClick = {
+                        hotUpdateManager.testQueryProvider(
+                            authority = "com.hrm.forge.upgrade.test.provider",
+                            path = "users"
+                        )
+                        onShowToast("查询操作已执行，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("查询所有用户")
+                }
+                
+                // 查询指定用户
+                Button(
+                    onClick = {
+                        hotUpdateManager.testQueryProvider(
+                            authority = "com.hrm.forge.upgrade.test.provider",
+                            path = "users/1"
+                        )
+                        onShowToast("查询用户 ID=1，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("查询用户 (ID=1)")
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                // 插入新用户
+                Button(
+                    onClick = {
+                        hotUpdateManager.testInsertProvider(
+                            authority = "com.hrm.forge.upgrade.test.provider",
+                            path = "users"
+                        )
+                        onShowToast("插入操作已执行，请查看 Logcat")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text("插入新用户")
+                }
+                
+                Text(
+                    text = "💡 TestContentProvider 在热更新 APK 的 Manifest 中声明，Forge 通过占坑 Provider 和 Hook 机制实现热更新",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                
+                Text(
+                    text = "🔍 Authority: com.hrm.forge.upgrade.test.provider",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+                
+                Text(
+                    text = "🔍 查看 Logcat 过滤 'TestContentProvider' 或 'ContentProviderHook' 标签",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+
         // 说明文本
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -543,6 +637,11 @@ fun MainScreen(
                           ✅ 动态注册：完全支持，与普通 Receiver 无区别
                           ✅ 静态注册：支持在应用运行时接收广播
                           ❌ 应用未运行时：无法接收广播（需要进程存活）
+                        • ContentProvider：
+                          ✅ 查询操作：支持 query() 方法
+                          ✅ 插入操作：支持 insert() 方法
+                          ✅ 更新/删除：支持 update()/delete() 方法
+                          ✅ 使用真实 Authority 直接访问
                         • 通过 Logcat 查看测试日志验证功能
                     """.trimIndent(),
                     fontSize = 14.sp,

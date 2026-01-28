@@ -59,14 +59,14 @@ package com.hrm.forge.upgrade
  * ### 步骤 1: 构建热更新 APK
  * ```bash
  * cd /Users/dehuilin/AndroidStudioProjects/Forge
- * ./gradlew :upgrade-test:assembleDebug
+ * ./gradlew :app:assembleDebug
  * ```
- * 生成的 APK 位于: `upgrade-test/build/outputs/apk/debug/upgrade-test-debug.apk`
+ * 生成的 APK 位于: `app/build/intermediates/apk/debug/app-debug.apk`
  * 
  * ### 步骤 2: 复制 APK 到 Assets（可选）
  * 将生成的 APK 复制到 `app/src/main/assets/` 目录，然后使用:
  * ```kotlin
- * manager.releaseFromAssets("upgrade-test-debug.apk") { success, message ->
+ * manager.releaseFromAssets("app-debug.apk") { success, message ->
  *     Log.i(TAG, "Release result: $success, $message")
  * }
  * ```

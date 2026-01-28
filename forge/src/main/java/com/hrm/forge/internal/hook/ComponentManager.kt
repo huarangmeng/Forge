@@ -789,6 +789,15 @@ internal object ComponentManager {
         return all
     }
     
+    /**
+     * 获取热更新 APK 中的所有 ContentProvider（仅热更，不包括主 APK）
+     * 
+     * @return Map<Authority, ProviderInfo>
+     */
+    fun getHotUpdateProviders(): Map<String, ProviderInfo> {
+        return hotUpdateProviders.toMap()
+    }
+    
     // ==================== 管理方法 ====================
     
     /**

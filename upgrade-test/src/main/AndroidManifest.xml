@@ -40,6 +40,29 @@
         - 参考 DynamicTestReceiver.kt 的实现
         - 完全通过代码动态注册，推荐方式
         -->
+        
+        <!-- 
+        ContentProvider 热更新测试
+        
+        功能说明：
+        1. 这个 Provider 不会在主 APK 的 AndroidManifest 中注册
+        2. Forge 框架会解析热更新 APK 的 Manifest
+        3. 使用占坑 Provider + Hook 机制实现热更新
+        4. 调用方使用真实 Authority 即可访问
+        
+        工作原理：
+        - 在 ActivityThread.mProviderMap 中添加真实 Authority 的映射
+        - 映射到占坑 Provider 的 ProviderClientRecord
+        - 占坑 Provider 实例已被替换为热更 Provider 实例
+        
+        测试方法：
+        - HotUpdateTester.testQueryProvider("com.hrm.forge.upgrade.test.provider", "users")
+        - HotUpdateTester.testInsertProvider("com.hrm.forge.upgrade.test.provider", "users")
+        -->
+        <provider
+            android:name=".TestContentProvider"
+            android:authorities="com.hrm.forge.upgrade.test.provider"
+            android:exported="false" />
     </application>
 
 </manifest>

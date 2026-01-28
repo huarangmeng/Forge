@@ -176,6 +176,26 @@ class HotUpdateManager(val context: Context) {
     fun testSendCustomImplicitBroadcast(action: String = "com.hrm.forge.IMPLICIT_TEST_ACTION"): Boolean {
         return HotUpdateTester.testSendCustomImplicitBroadcast(context, action)
     }
+    
+    /**
+     * 测试 ContentProvider 查询操作
+     * @param authority ContentProvider 的 Authority
+     * @param path 查询路径（可选，如 "users"）
+     * @return 是否成功
+     */
+    fun testQueryProvider(authority: String, path: String? = null): Boolean {
+        return HotUpdateTester.testQueryProvider(context, authority, path)
+    }
+    
+    /**
+     * 测试 ContentProvider 插入操作
+     * @param authority ContentProvider 的 Authority
+     * @param path 插入路径（可选，如 "users"）
+     * @return 是否成功
+     */
+    fun testInsertProvider(authority: String, path: String? = null): Boolean {
+        return HotUpdateTester.testInsertProvider(context, authority, path)
+    }
 
     /**
      * 从 Assets 加载 APK 并发布（自动读取版本号）

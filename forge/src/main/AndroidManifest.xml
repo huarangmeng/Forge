@@ -40,10 +40,23 @@
             <!-- 注意：由于无法动态修改 Manifest，建议使用动态注册 -->
         </receiver>
 
-        <!-- Forge 占坑 ContentProvider -->
+        <!-- 
+        占坑 ContentProvider：用于热更新场景
+        
+        功能说明：
+        1. 在 AndroidManifest 中注册占坑 Authority
+        2. ContentProviderHook 会在 ActivityThread.mProviderMap 中添加热更 Provider 的真实 Authority 映射
+        3. 映射到此占坑 Provider 的 ProviderClientRecord
+        4. 调用方使用真实 Authority 时，系统会找到映射，访问到热更 Provider 实例
+        
+        注意事项：
+        - Authority 固定为 "com.hrm.forge.stub.provider"
+        - exported=false 确保安全性
+        - 实际业务逻辑在热更新 APK 的 ContentProvider 中实现
+        -->
         <provider
             android:name="com.hrm.forge.internal.hook.StubContentProvider"
-            android:authorities="${applicationId}.forge.stub"
+            android:authorities="com.hrm.forge.stub.provider"
             android:exported="false" />
     </application>
 </manifest>
