@@ -17,7 +17,7 @@ internal object InstrumentationHook {
      * Hook ActivityThread 的 Instrumentation
      */
     @SuppressLint("PrivateApi")
-    fun hookInstrumentation(application: Application) {
+    fun hookInstrumentation() {
         Logger.i(TAG, "Start hook instrumentation")
         
         try {

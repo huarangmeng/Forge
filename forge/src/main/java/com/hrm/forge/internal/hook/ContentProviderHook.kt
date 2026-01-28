@@ -37,6 +37,8 @@ internal object ContentProviderHook {
             Logger.i(TAG, "ContentProvider already hooked, skip")
             return
         }
+
+        ContentResolverHook.hookIContentService(context.contentResolver)
         
         appContext = context
 
