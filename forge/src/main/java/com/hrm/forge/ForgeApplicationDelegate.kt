@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import com.hrm.forge.internal.util.DataStorage
 import com.hrm.forge.internal.hook.AMSHook
+import com.hrm.forge.internal.hook.ContentProviderHook
+import com.hrm.forge.internal.hook.ContentResolverHook
 import com.hrm.forge.internal.hook.InstrumentationHook
 import com.hrm.forge.internal.loader.ForgeAllLoader
 import com.hrm.forge.internal.log.Logger
@@ -53,9 +55,6 @@ internal object ForgeApplicationDelegate {
             // 1. 初始化数据存储
             DataStorage.init(base)
             Logger.i(TAG, "✓ Data storage initialized")
-
-            // 1.5 解除 Hidden API 限制
-            ReflectionUtils.bypassHiddenApi()
             
             // 2. Hook Instrumentation（必须在 Activity 启动之前）
             InstrumentationHook.hookInstrumentation(application)
@@ -64,10 +63,6 @@ internal object ForgeApplicationDelegate {
             // 3. Hook AMS（必须在 Service 启动之前）
             AMSHook.hookAMS(base)
             Logger.i(TAG, "✓ AMS hooked")
-
-            // 3.5 Hook Context.getContentResolver
-            com.hrm.forge.internal.hook.ContextHook.hookContext(base)
-            Logger.i(TAG, "✓ Context ContentResolver hooked")
             
             // 4. 加载热更新 APK
             val loadResult = ForgeAllLoader.loadNewApk(
@@ -76,6 +71,15 @@ internal object ForgeApplicationDelegate {
                 base.applicationInfo.nativeLibraryDir
             )
             Logger.i(TAG, "✓ Hot update load result: $loadResult")
+            
+            // 5. Hook ContentProvider（必须在 ComponentManager 初始化之后）
+            // 因为需要从 ComponentManager 获取热更 Provider 列表
+            ContentProviderHook.hook(base)
+            Logger.i(TAG, "✓ ContentProvider hooked")
+            
+            // 6. Hook ContentResolver（解决 notifyChange 跨进程通知问题）
+            ContentResolverHook.hook(base)
+            Logger.i(TAG, "✓ ContentResolver hooked")
             
             isInstalled = true
             

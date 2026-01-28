@@ -63,5 +63,5 @@ dependencies {
     // Forge 热更新框架
     implementation(project(":forge"))
 
-//    implementation(project(":upgrade-test") )
+//    implementation(project(":upgrade-test"))
 }

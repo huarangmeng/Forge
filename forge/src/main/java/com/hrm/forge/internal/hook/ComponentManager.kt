@@ -98,6 +98,11 @@ internal object ComponentManager {
     // Receiver 实例缓存，避免重复创建
     private val receiverInstanceCache = mutableMapOf<String, android.content.BroadcastReceiver>()
     
+    // 热更新 APK 路径（供 ContentProviderHook 使用）
+    @Volatile
+    var hotUpdateApkPath: String? = null
+        private set
+    
     // 是否已初始化
     private var isInitialized = false
     
@@ -114,6 +119,9 @@ internal object ComponentManager {
         }
         
         Logger.i(TAG, "Initializing ComponentInfoManager")
+        
+        // 保存热更新 APK 路径
+        this.hotUpdateApkPath = hotUpdateApkPath
         
         try {
             val startTime = System.currentTimeMillis()
