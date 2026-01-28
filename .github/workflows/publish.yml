@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          lfs: false  # Disable LFS to prevent corruption of gradle-wrapper.jar
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
