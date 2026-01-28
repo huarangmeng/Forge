@@ -27,44 +27,48 @@
     public *;
 }
 
--keep class com.hrm.forge.loader.ForgeApplication {
+-keep class com.hrm.forge.ForgeApplication {
     public *;
     protected *;
 }
 
 # 保持 Instrumentation 相关类（关键，不能混淆）
--keep class com.hrm.forge.loader.instrumentation.InstrumentationProxy {
+-keep class com.hrm.forge.internal.hook.InstrumentationProxy {
     public *;
     # 这两个方法特别重要，不能被混淆
     public ** execStartActivity(...);
     public ** newActivity(...);
 }
 
--keep class com.hrm.forge.loader.instrumentation.HookHelper {
+-keep class com.hrm.forge.internal.hook.InstrumentationHook {
     public *;
 }
 
--keep class com.hrm.forge.loader.instrumentation.StubActivity* {
+-keep class com.hrm.forge.internal.hook.StubActivity* {
     *;
 }
 
--keep class com.hrm.forge.loader.instrumentation.ActivityInfoManager {
+-keep class com.hrm.forge.internal.hook.ComponentManager {
     public *;
 }
 
--keep class com.hrm.forge.loader.instrumentation.StubService {
+-keep class com.hrm.forge.internal.hook.StubService {
     *;
 }
 
--keep class com.hrm.forge.loader.instrumentation.ServiceHelper {
+-keep class com.hrm.forge.internal.hook.AMSHook {
     public *;
 }
 
--keep class com.hrm.forge.loader.instrumentation.AMSHookHelper {
-    public *;
+-keep class com.hrm.forge.internal.hook.AMSHook$AMSInvocationHandler {
+    *;
 }
 
--keep class com.hrm.forge.loader.instrumentation.AMSHookHelper$AMSInvocationHandler {
+-keep class com.hrm.forge.internal.hook.StubReceiver {
+    *;
+}
+
+-keep class com.hrm.forge.internal.hook.StubContentProvider {
     *;
 }
 

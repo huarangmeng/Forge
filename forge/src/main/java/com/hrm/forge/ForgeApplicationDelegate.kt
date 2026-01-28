@@ -7,6 +7,7 @@ import com.hrm.forge.internal.hook.AMSHook
 import com.hrm.forge.internal.hook.InstrumentationHook
 import com.hrm.forge.internal.loader.ForgeAllLoader
 import com.hrm.forge.internal.log.Logger
+import com.hrm.forge.internal.util.ReflectionUtils
 
 /**
  * Forge Application 代理（内部实现）
@@ -52,6 +53,9 @@ internal object ForgeApplicationDelegate {
             // 1. 初始化数据存储
             DataStorage.init(base)
             Logger.i(TAG, "✓ Data storage initialized")
+
+            // 1.5 解除 Hidden API 限制
+            ReflectionUtils.bypassHiddenApi()
             
             // 2. Hook Instrumentation（必须在 Activity 启动之前）
             InstrumentationHook.hookInstrumentation(application)
@@ -60,6 +64,10 @@ internal object ForgeApplicationDelegate {
             // 3. Hook AMS（必须在 Service 启动之前）
             AMSHook.hookAMS(base)
             Logger.i(TAG, "✓ AMS hooked")
+
+            // 3.5 Hook Context.getContentResolver
+            com.hrm.forge.internal.hook.ContextHook.hookContext(base)
+            Logger.i(TAG, "✓ Context ContentResolver hooked")
             
             // 4. 加载热更新 APK
             val loadResult = ForgeAllLoader.loadNewApk(

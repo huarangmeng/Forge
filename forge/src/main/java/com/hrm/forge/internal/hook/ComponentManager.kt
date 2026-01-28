@@ -38,10 +38,10 @@ internal object ComponentManager {
     
     // 占坑 Activity 映射：launchMode -> 占坑 Activity 类名
     private val STUB_ACTIVITIES = mapOf(
-        ActivityInfo.LAUNCH_MULTIPLE to "com.hrm.forge.loader.instrumentation.StubActivityStandard",
-        ActivityInfo.LAUNCH_SINGLE_TOP to "com.hrm.forge.loader.instrumentation.StubActivitySingleTop",
-        ActivityInfo.LAUNCH_SINGLE_TASK to "com.hrm.forge.loader.instrumentation.StubActivitySingleTask",
-        ActivityInfo.LAUNCH_SINGLE_INSTANCE to "com.hrm.forge.loader.instrumentation.StubActivitySingleInstance"
+        ActivityInfo.LAUNCH_MULTIPLE to "com.hrm.forge.internal.hook.StubActivityStandard",
+        ActivityInfo.LAUNCH_SINGLE_TOP to "com.hrm.forge.internal.hook.StubActivitySingleTop",
+        ActivityInfo.LAUNCH_SINGLE_TASK to "com.hrm.forge.internal.hook.StubActivitySingleTask",
+        ActivityInfo.LAUNCH_SINGLE_INSTANCE to "com.hrm.forge.internal.hook.StubActivitySingleInstance"
     )
     
     // 主 APK 中已注册的 Activity：className -> launchMode
@@ -61,6 +61,21 @@ internal object ComponentManager {
     
     // 热更新 APK 中的 BroadcastReceiver
     private val hotUpdateReceivers = mutableSetOf<String>()
+    
+    // 主 APK 中已注册的 ContentProvider：authority -> ProviderInfo
+    private val mainProviders = mutableMapOf<String, ProviderInfo>()
+    
+    // 热更新 APK 中的 ContentProvider：authority -> ProviderInfo
+    private val hotUpdateProviders = mutableMapOf<String, ProviderInfo>()
+    
+    /**
+     * ContentProvider 配置信息
+     */
+    data class ProviderInfo(
+        val className: String,
+        val authority: String,
+        val exported: Boolean = false
+    )
     
     /**
      * BroadcastReceiver 配置信息
@@ -137,7 +152,7 @@ internal object ComponentManager {
     private fun parseMainComponents(context: Context) {
         try {
             val pm = context.packageManager
-            val flags = PackageManager.GET_ACTIVITIES or PackageManager.GET_SERVICES or PackageManager.GET_RECEIVERS
+            val flags = PackageManager.GET_ACTIVITIES or PackageManager.GET_SERVICES or PackageManager.GET_RECEIVERS or PackageManager.GET_PROVIDERS
             val packageInfo = pm.getPackageInfo(context.packageName, flags)
             
             // 解析 Activity
@@ -157,8 +172,15 @@ internal object ComponentManager {
                 mainReceivers.add(receiverInfo.name)
                 Logger.d(TAG, "Main receiver: ${receiverInfo.name}")
             }
+
+            // 解析 ContentProvider
+            packageInfo.providers?.forEach { providerInfo ->
+                val info = ProviderInfo(providerInfo.name, providerInfo.authority, providerInfo.exported)
+                mainProviders[providerInfo.authority] = info
+                Logger.d(TAG, "Main provider: ${providerInfo.name}, authority: ${providerInfo.authority}")
+            }
             
-            Logger.i(TAG, "Parsed main APK: ${mainActivities.size} activities, ${mainServices.size} services, ${mainReceivers.size} receivers")
+            Logger.i(TAG, "Parsed main APK: ${mainActivities.size} activities, ${mainServices.size} services, ${mainReceivers.size} receivers, ${mainProviders.size} providers")
             
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to parse main components", e)
@@ -176,7 +198,8 @@ internal object ComponentManager {
             // 使用 GET_RECEIVERS 会自动包含 IntentFilter 信息
             val flags = PackageManager.GET_ACTIVITIES or 
                        PackageManager.GET_SERVICES or 
-                       PackageManager.GET_RECEIVERS
+                       PackageManager.GET_RECEIVERS or
+                       PackageManager.GET_PROVIDERS
             
             val packageInfo = pm.getPackageArchiveInfo(apkPath, flags)
             
@@ -208,13 +231,22 @@ internal object ComponentManager {
                     Logger.d(TAG, "Hot update receiver: ${receiverInfo.name}")
                 }
             }
+
+            // 解析 ContentProvider
+            packageInfo.providers?.forEach { providerInfo ->
+                if (!mainProviders.containsKey(providerInfo.authority)) {
+                    val info = ProviderInfo(providerInfo.name, providerInfo.authority, providerInfo.exported)
+                    hotUpdateProviders[providerInfo.authority] = info
+                    Logger.d(TAG, "Hot update provider: ${providerInfo.name}, authority: ${providerInfo.authority}")
+                }
+            }
             
             // 解析 IntentFilter 配置（需要使用 PackageParser）
             if (hotUpdateReceivers.isNotEmpty()) {
                 parseReceiverIntentFilters(context, apkPath)
             }
             
-            Logger.i(TAG, "Parsed hot update APK: ${hotUpdateActivities.size} activities, ${hotUpdateServices.size} services, ${hotUpdateReceivers.size} receivers")
+            Logger.i(TAG, "Parsed hot update APK: ${hotUpdateActivities.size} activities, ${hotUpdateServices.size} services, ${hotUpdateReceivers.size} receivers, ${hotUpdateProviders.size} providers")
             Logger.i(TAG, "Parsed ${receiverConfigMap.size} receiver intent-filter actions")
             
         } catch (e: Exception) {
@@ -717,6 +749,46 @@ internal object ComponentManager {
         }
     }
     
+    // ==================== ContentProvider 相关方法 ====================
+    
+    /**
+     * 检查 ContentProvider 是否在主 APK 中注册
+     */
+    fun isProviderRegisteredInMain(authority: String): Boolean {
+        return mainProviders.containsKey(authority)
+    }
+    
+    /**
+     * 检查 ContentProvider 是否在热更新 APK 中存在
+     */
+    fun isProviderInHotUpdate(authority: String): Boolean {
+        return hotUpdateProviders.containsKey(authority)
+    }
+    
+    /**
+     * 检查 ContentProvider 是否存在（主 APK 或热更新 APK）
+     */
+    fun isProviderExists(authority: String): Boolean {
+        return isProviderRegisteredInMain(authority) || isProviderInHotUpdate(authority)
+    }
+
+    /**
+     * 获取 ContentProvider 信息
+     */
+    fun getProviderInfo(authority: String): ProviderInfo? {
+        return hotUpdateProviders[authority] ?: mainProviders[authority]
+    }
+    
+    /**
+     * 获取所有已知的 Authority（包括主 APK 和热更新 APK）
+     */
+    fun getAllAuthorities(): List<String> {
+        val all = mutableListOf<String>()
+        all.addAll(mainProviders.keys)
+        all.addAll(hotUpdateProviders.keys)
+        return all
+    }
+    
     // ==================== 管理方法 ====================
     
     /**
@@ -729,6 +801,8 @@ internal object ComponentManager {
         hotUpdateServices.clear()
         mainReceivers.clear()
         hotUpdateReceivers.clear()
+        mainProviders.clear()
+        hotUpdateProviders.clear()
         receiverConfigMap.clear()
         receiverInstanceCache.clear()
         isInitialized = false
@@ -747,6 +821,8 @@ internal object ComponentManager {
             appendLine("  Hot update Services: ${hotUpdateServices.size}")
             appendLine("  Main Receivers: ${mainReceivers.size}")
             appendLine("  Hot update Receivers: ${hotUpdateReceivers.size}")
+            appendLine("  Main Providers: ${mainProviders.size}")
+            appendLine("  Hot update Providers: ${hotUpdateProviders.size}")
             appendLine("  Receiver IntentFilter Actions: ${receiverConfigMap.size}")
             appendLine("  Receiver Instance Cache: ${receiverInstanceCache.size}")
             appendLine("  Initialized: $isInitialized")

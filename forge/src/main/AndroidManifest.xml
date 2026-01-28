@@ -5,31 +5,31 @@
 
         <!-- 占坑 Activity：Standard 模式 -->
         <activity
-            android:name="com.hrm.forge.loader.instrumentation.StubActivityStandard"
+            android:name="com.hrm.forge.internal.hook.StubActivityStandard"
             android:exported="false"
             android:launchMode="standard" />
 
         <!-- 占坑 Activity：SingleTop 模式 -->
         <activity
-            android:name="com.hrm.forge.loader.instrumentation.StubActivitySingleTop"
+            android:name="com.hrm.forge.internal.hook.StubActivitySingleTop"
             android:exported="false"
             android:launchMode="singleTop" />
 
         <!-- 占坑 Activity：SingleTask 模式 -->
         <activity
-            android:name="com.hrm.forge.loader.instrumentation.StubActivitySingleTask"
+            android:name="com.hrm.forge.internal.hook.StubActivitySingleTask"
             android:exported="false"
             android:launchMode="singleTask" />
 
         <!-- 占坑 Activity：SingleInstance 模式 -->
         <activity
-            android:name="com.hrm.forge.loader.instrumentation.StubActivitySingleInstance"
+            android:name="com.hrm.forge.internal.hook.StubActivitySingleInstance"
             android:exported="false"
             android:launchMode="singleInstance" />
 
         <!-- 占坑 Service：用于启动未注册的 Service -->
         <service
-            android:name="com.hrm.forge.loader.instrumentation.StubService"
+            android:name="com.hrm.forge.internal.hook.StubService"
             android:exported="false" />
 
         <!-- 占坑 BroadcastReceiver：用于接收热更新 APK 中新增的静态 Receiver -->
@@ -39,5 +39,11 @@
             <!-- 可以在这里添加常用的系统广播 IntentFilter -->
             <!-- 注意：由于无法动态修改 Manifest，建议使用动态注册 -->
         </receiver>
+
+        <!-- Forge 占坑 ContentProvider -->
+        <provider
+            android:name="com.hrm.forge.internal.hook.StubContentProvider"
+            android:authorities="${applicationId}.forge.stub"
+            android:exported="false" />
     </application>
 </manifest>
