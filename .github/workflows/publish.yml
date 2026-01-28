@@ -1,5 +1,3 @@
-# .github/workflows/publish.yml
-
 name: Publish
 on:
   release:
@@ -25,6 +23,21 @@ jobs:
 
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v2
+
+      # ========== 新增步骤：修复/重新生成Gradle Wrapper ==========
+      - name: Fix corrupt Gradle wrapper (if exists)
+        run: |
+          # 删除可能损坏的gradle-wrapper.jar
+          rm -f ./gradle/wrapper/gradle-wrapper.jar
+          # 触发Gradle Wrapper重新下载（--version需与项目gradle-wrapper.properties中的版本一致）
+          # 先读取配置文件中的Gradle版本，自动适配（推荐）
+          GRADLE_VERSION=$(grep -oP 'distributionUrl.*gradle-\K\d+\.\d+(\.\d+)?' ./gradle/wrapper/gradle-wrapper.properties)
+          echo "Detected Gradle version: $GRADLE_VERSION"
+          # 重新生成wrapper（确保jar文件有效）
+          ./gradlew wrapper --gradle-version $GRADLE_VERSION --distribution-type bin
+          # 验证wrapper是否正常
+          ./gradlew --version
+      # ========== 新增步骤结束 ==========
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
