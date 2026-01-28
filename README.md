@@ -31,9 +31,13 @@ Forge 是一个基于 Kotlin 开发的 Android 热更新框架，支持动态加
 | **Activity** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
 | **Service** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
 | **BroadcastReceiver** | ✅ 支持新增/修改 (有限制*) | ⚠️ 仅支持修改 |
-| **ContentProvider** | ✅ 支持新增/修改 | ⚠️ 仅支持修改 |
+| **ContentProvider** | ✅ 支持新增/修改 (有限制**) | ⚠️ 仅支持修改 |
 | **差分生成** | ❌ 不需要 | ✅ 需要 oldApk + newApk |
 | **更新场景** | 版本升级 + Bug 修复 | Bug 修复 |
+
+**注释：**
+- BroadcastReceiver 限制：静态注册的 Receiver 只能在应用运行时接收广播，详见 [BroadcastReceiver 限制说明](#broadcastreceiver-限制说明)
+- ContentProvider 限制：跨进程 `notifyChange()` 会被拦截，详见 [ContentProvider 限制说明](#contentprovider-限制说明)
 
 ### Forge 的核心优势
 
@@ -42,7 +46,7 @@ Forge 是一个基于 Kotlin 开发的 Android 热更新框架，支持动态加
 - **整包替换**：直接使用新版本完整 APK，无需生成差分补丁
 - **无需 oldApk**：不依赖基准版本，任何版本都能直接更新
 - **支持大版本升级**：可以跨版本更新，不限于小修小补
-- **四大组件完全自由**：可以新增/删除 Activity、Service 等，无任何限制
+- **四大组件完全自由**：可以新增/删除 Activity、Service 等，有部分限制
 
 **🎯 Tinker 的局限性**
 
@@ -363,10 +367,79 @@ context.sendBroadcast(Intent("com.example.MY_ACTION"))
 - 需要在应用未运行时接收广播的功能，必须在**主 APK** 中提前声明 Receiver
 - 其他场景优先使用**动态注册**（更灵活）
 
+### ContentProvider 限制说明
+
+ContentProvider 的热更新支持有以下限制：
+
+#### ✅ 完全支持的场景
+
+| 场景 | 支持程度 | 说明 |
+|------|---------|------|
+| **修改已有 Provider** | ✅ 完全支持 | DEX 热更新会自动覆盖旧代码 |
+| **新增 Provider（进程内访问）** | ✅ 完全支持 | 同进程内的 query/insert/update/delete 完全正常 |
+| **新增 Provider（跨进程访问）** | ⚠️ 有限支持 | 可以查询和操作数据，但 `notifyChange()` 会被拦截 |
+
+#### ⚠️ 受限的功能
+
+| 功能 | 支持程度 | 说明 |
+|------|---------|------|
+| **ContentObserver 通知** | ⚠️ 仅支持进程内 | 跨进程的 `notifyChange()` 会被自动拦截，避免 SecurityException |
+| **应用未运行时访问** | ❌ 不支持 | 与静态 Receiver 类似，需要进程存活 |
+| **系统级 Provider** | ❌ 不支持 | 系统广播的 Provider 查询无法拦截 |
+
+#### 详细说明
+
+**1. 进程内访问（完全支持）**
+```kotlin
+// ✅ 同进程访问完全正常
+val uri = Uri.parse("content://com.example.hotupdate.provider/users")
+val cursor = contentResolver.query(uri, null, null, null, null)
+
+// ✅ ContentObserver 正常工作（进程内）
+contentResolver.registerContentObserver(uri, true, object : ContentObserver(null) {
+    override fun onChange(selfChange: Boolean) {
+        // 会收到通知
+    }
+})
+
+contentResolver.insert(uri, values)  // 触发 onChange()
+```
+
+**2. 跨进程访问（有限支持）**
+```kotlin
+// ✅ 跨进程查询/操作完全正常
+val cursor = contentResolver.query(uri, null, null, null, null)
+val resultUri = contentResolver.insert(uri, values)
+
+// ⚠️ notifyChange() 会被自动拦截
+// 原因：热更新 Provider 未在主 APK manifest 中声明
+// 系统检测到后会抛出 SecurityException
+// Forge 自动捕获并静默处理，不会崩溃
+
+// ❌ 跨进程的 ContentObserver 不会收到通知
+// 因为 notifyChange() 被拦截，系统服务无法分发通知
+```
+
+**工作原理：**
+- Forge 通过 `ActivityThread.installContentProviders()` 安装热更新 Provider
+- Provider 的 CRUD 操作完全正常（query/insert/update/delete）
+- Hook `IContentService.notifyChange()` 拦截跨进程通知
+- 对热更新 Provider 的 URI，直接返回，避免 SecurityException
+- 进程内的通知不受影响
+
+**核心限制：**
+- 热更新 Provider 未在主 APK AndroidManifest 中声明
+- 系统服务（IContentService）会检查 Provider 是否注册
+- 跨进程 `notifyChange()` 会被拦截，ContentObserver 不会收到通知
+
+**建议：**
+- 如果需要跨进程 ContentObserver 功能，必须在**主 APK** 中提前声明 Provider
+- 仅用于进程内数据访问的场景，可以使用热更新 Provider
+- 大多数应用的 Provider 都是进程内访问，不受影响
+
 
 ## 文档
 
-- [Forge 框架文档](forge/README.md)
 - [Demo 应用文档](app/README.md)
 
 ## 常见问题
