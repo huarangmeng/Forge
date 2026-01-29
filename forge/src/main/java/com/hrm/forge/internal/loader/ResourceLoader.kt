@@ -2,6 +2,7 @@ package com.hrm.forge.internal.loader
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.AssetManager
 import android.content.res.Resources
 import android.os.Build
@@ -71,17 +72,52 @@ internal object ResourceLoader {
     }
     
     /**
+     * 获取真正的 ContextImpl（处理 ContextWrapper 包装）
+     */
+    private fun getRealContext(context: Context): Context {
+        var realContext = context
+        
+        // 循环展开 ContextWrapper 包装，直到找到真正的 ContextImpl
+        while (realContext is ContextWrapper) {
+            try {
+                val baseContextField = ContextWrapper::class.java.getDeclaredField("mBase")
+                baseContextField.isAccessible = true
+                val baseContext = baseContextField.get(realContext) as? Context
+                if (baseContext != null) {
+                    realContext = baseContext
+                } else {
+                    break
+                }
+            } catch (e: Exception) {
+                Logger.w(TAG, "Failed to unwrap ContextWrapper", e)
+                break
+            }
+        }
+        
+        return realContext
+    }
+    
+    /**
      * 替换 ContextImpl 中的 Resources
      */
     private fun replaceContextResources(context: Context, resources: Resources) {
         try {
+            val realContext = getRealContext(context)
+            
+            Logger.d(TAG, "Real context type: ${realContext.javaClass.name}")
+            
             // 获取 ContextImpl
             val contextImplClass = Class.forName("android.app.ContextImpl")
+            
+            // 确保现在是 ContextImpl
+            if (!contextImplClass.isInstance(realContext)) {
+                throw IllegalArgumentException("Context is not ContextImpl: ${realContext.javaClass.name}")
+            }
             
             // 替换 mResources
             val mResourcesField = contextImplClass.getDeclaredField("mResources")
             mResourcesField.isAccessible = true
-            mResourcesField.set(context, resources)
+            mResourcesField.set(realContext, resources)
             
             Logger.d(TAG, "Replace ContextImpl resources success")
             
@@ -97,11 +133,13 @@ internal object ResourceLoader {
     @SuppressLint("PrivateApi")
     private fun replaceLoadedApkResources(context: Context, resources: Resources) {
         try {
+            val realContext = getRealContext(context)
+            
             // 获取 ContextImpl 的 mPackageInfo 字段
             val contextImplClass = Class.forName("android.app.ContextImpl")
             val mPackageInfoField = contextImplClass.getDeclaredField("mPackageInfo")
             mPackageInfoField.isAccessible = true
-            val loadedApk = mPackageInfoField.get(context)
+            val loadedApk = mPackageInfoField.get(realContext)
             
             if (loadedApk != null) {
                 // 替换 LoadedApk 的 mResources

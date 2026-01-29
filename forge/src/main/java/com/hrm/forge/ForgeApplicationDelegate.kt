@@ -2,9 +2,7 @@ package com.hrm.forge
 
 import android.app.Application
 import android.content.Context
-import com.hrm.forge.internal.hook.AMSHook
-import com.hrm.forge.internal.hook.ContentProviderHook
-import com.hrm.forge.internal.hook.InstrumentationHook
+import com.hrm.forge.internal.hook.HookManager
 import com.hrm.forge.internal.loader.ForgeAllLoader
 import com.hrm.forge.internal.log.Logger
 import com.hrm.forge.internal.util.DataStorage
@@ -20,6 +18,8 @@ import com.hrm.forge.internal.util.DataStorage
  * 使用者无需了解此类的实现细节，SDK 会自动处理一切
  *
  * 这是 Forge SDK 的内部 API
+ * 
+ * @since 2.0.0 重构使用 HookManager 统一管理所有 Hook
  */
 internal object ForgeApplicationDelegate {
 
@@ -35,10 +35,9 @@ internal object ForgeApplicationDelegate {
      * 完成所有初始化工作
      *
      * @param application Application 实例
-     * @param base Context
      * @param applicationLikeClassName ApplicationLike 类名
      */
-    fun install(application: Application, base: Context, applicationLikeClassName: String) {
+    fun install(application: Application, applicationLikeClassName: String) {
         if (isInstalled) {
             Logger.w(TAG, "Already installed")
             return
@@ -51,29 +50,26 @@ internal object ForgeApplicationDelegate {
             Logger.i(TAG, "========================================")
 
             // 1. 初始化数据存储
-            DataStorage.init(base)
+            DataStorage.init(application)
             Logger.i(TAG, "✓ Data storage initialized")
 
-            // 2. Hook Instrumentation（必须在 Activity 启动之前）
-            InstrumentationHook.hookInstrumentation()
-            Logger.i(TAG, "✓ Instrumentation hooked")
-
-            // 3. Hook AMS（必须在 Service 启动之前）
-            AMSHook.hookAMS(base)
-            Logger.i(TAG, "✓ AMS hooked")
-
-            // 4. 加载热更新 APK
+            // 2. 加载热更新 APK（获取热更新 APK 路径）
             val loadResult = ForgeAllLoader.loadNewApk(
-                base,
+                application,
                 applicationLikeClassName,
-                base.applicationInfo.nativeLibraryDir
+                application.applicationInfo.nativeLibraryDir
             )
             Logger.i(TAG, "✓ Hot update load result: $loadResult")
 
-            // 5. Hook ContentProvider（必须在 ComponentManager 初始化之后）
-            // 因为需要从 ComponentManager 获取热更 Provider 列表
-            ContentProviderHook.hook(base)
-            Logger.i(TAG, "✓ ContentProvider hooked")
+            // 3. 使用 HookManager 统一初始化所有 Hook
+            // HookManager 会自动处理：
+            // - ComponentManager 初始化（解析组件信息）
+            // - InstrumentationHook（拦截 Activity）
+            // - AMSHook（拦截 Service 和 Receiver）
+            // - ContentProviderHook（安装 ContentProvider）
+            val hotUpdateApkPath = ForgeAllLoader.getCurrentApkPath()
+            HookManager.init(application, hotUpdateApkPath)
+            Logger.i(TAG, "✓ All hooks initialized via HookManager")
 
             isInstalled = true
 

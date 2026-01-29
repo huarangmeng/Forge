@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Build
 import com.hrm.forge.internal.util.Constants
 import com.hrm.forge.internal.util.FileUtils
-import com.hrm.forge.internal.util.ReflectionUtils
+import com.hrm.forge.internal.util.ReflectUtil
 import com.hrm.forge.internal.log.Logger
 import java.io.File
 import java.io.FileOutputStream
@@ -187,7 +187,7 @@ internal object NativeLibraryLoader {
         val classLoader = context.classLoader
         
         // 获取 pathList 字段
-        val pathListField = ReflectionUtils.getClassLoaderField(classLoader, "pathList")
+        val pathListField = ReflectUtil.getClassLoaderField(classLoader, "pathList")
         val pathList = pathListField.get(classLoader)
         
         // 获取 nativeLibraryDirectories 列表
@@ -239,7 +239,7 @@ internal object NativeLibraryLoader {
         val classLoader = context.classLoader
         
         // 获取 pathList 字段
-        val pathListField = ReflectionUtils.getClassLoaderField(classLoader, "pathList")
+        val pathListField = ReflectUtil.getClassLoaderField(classLoader, "pathList")
         val pathList = pathListField.get(classLoader)
         
         // 获取 nativeLibraryDirectories 列表

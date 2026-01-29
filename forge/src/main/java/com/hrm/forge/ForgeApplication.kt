@@ -94,10 +94,10 @@ abstract class ForgeApplication : Application() {
         super.attachBaseContext(base)
         
         // SDK 负责初始化和生命周期管理
-        ForgeApplicationDelegate.install(this, base, getApplicationLike())
+        ForgeApplicationDelegate.install(this, getApplicationLike())
         
         // SDK 自动转发 attachBaseContext
-        ForgeApplicationDelegate.dispatchAttachBaseContext(base)
+        ForgeApplicationDelegate.dispatchAttachBaseContext(this)
     }
 
     override fun onCreate() {

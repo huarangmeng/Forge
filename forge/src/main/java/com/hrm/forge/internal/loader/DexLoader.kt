@@ -2,7 +2,7 @@ package com.hrm.forge.internal.loader
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.hrm.forge.internal.util.ReflectionUtils
+import com.hrm.forge.internal.util.ReflectUtil
 import com.hrm.forge.internal.util.UnZipUtils
 import com.hrm.forge.internal.log.Logger
 import dalvik.system.DexClassLoader
@@ -102,7 +102,7 @@ internal object DexLoader {
         val classLoader = context.classLoader
 
         // 获取 pathList 字段
-        val pathListField = ReflectionUtils.getClassLoaderField(classLoader, "pathList")
+        val pathListField = ReflectUtil.getClassLoaderField(classLoader, "pathList")
         val pathList = pathListField.get(classLoader)
 
         // 创建临时的 DexClassLoader 加载新的 DEX
@@ -118,7 +118,7 @@ internal object DexLoader {
         )
 
         // 获取新的 dexElements
-        val newPathListField = ReflectionUtils.getClassLoaderField(dexClassLoader, "pathList")
+        val newPathListField = ReflectUtil.getClassLoaderField(dexClassLoader, "pathList")
         val newPathList = newPathListField.get(dexClassLoader)
 
         val newDexElementsField = newPathList.javaClass.getDeclaredField("dexElements")

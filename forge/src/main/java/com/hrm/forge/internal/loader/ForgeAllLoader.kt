@@ -3,7 +3,6 @@ package com.hrm.forge.internal.loader
 import android.content.Context
 import com.hrm.forge.ForgeApplication
 import com.hrm.forge.ForgeApplicationDelegate
-import com.hrm.forge.internal.hook.ComponentManager
 import com.hrm.forge.internal.log.Logger
 import com.hrm.forge.internal.state.VersionStateManager
 import com.hrm.forge.internal.util.DataStorage
@@ -112,10 +111,7 @@ internal object ForgeAllLoader {
                     return soResult
                 }
 
-                // 5. 初始化组件信息管理器（一次性解析 Activity、Service 和 BroadcastReceiver）
-                ComponentManager.init(context, apkFile.absolutePath)
-
-                // 6. 创建 ApplicationLike 实例
+                // 5. 创建 ApplicationLike 实例
                 if (!applicationLikeClassName.isNullOrEmpty()) {
                     createApplicationLike(context, applicationLikeClassName)
                 }
@@ -236,6 +232,16 @@ internal object ForgeAllLoader {
      */
     fun getCurrentVersion(): String? {
         return DataStorage.getString(KEY_CURRENT_VERSION)
+    }
+
+    /**
+     * 获取当前热更新 APK 路径
+     *
+     * @return 热更新 APK 路径，如果没有热更新则返回 null
+     * @since 2.0.0
+     */
+    fun getCurrentApkPath(): String? {
+        return DataStorage.getString(KEY_CURRENT_APK_PATH)
     }
 
     /**

@@ -1,81 +1,113 @@
 package com.hrm.forge.internal.hook
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.Application
 import android.app.Instrumentation
+import com.hrm.forge.internal.hook.base.BaseHook
+import com.hrm.forge.internal.util.ReflectUtil
 import com.hrm.forge.internal.log.Logger
 
 /**
- * Hook 辅助类
- * 用于替换系统的 Instrumentation
+ * Instrumentation Hook（重构版本）
+ * 
+ * 使用 BaseHook 统一生命周期管理
+ * 使用 ReflectUtil 简化反射代码
  */
-internal object InstrumentationHook {
-    private const val TAG = "HookHelper"
+internal object InstrumentationHook : BaseHook() {
+    
+    override val tag = "InstrumentationHook"
+    
+    private const val ACTIVITY_THREAD_CLASS = "android.app.ActivityThread"
     
     /**
-     * Hook ActivityThread 的 Instrumentation
+     * 原始的 Instrumentation（用于 unhook）
      */
-    @SuppressLint("PrivateApi")
+    private var originalInstrumentation: Instrumentation? = null
+    
+    /**
+     * Hook Instrumentation（公开方法，保持兼容性）
+     */
     fun hookInstrumentation() {
-        Logger.i(TAG, "Start hook instrumentation")
+        hook()
+    }
+    
+    @SuppressLint("PrivateApi")
+    override fun doHook() {
+        // 1. 获取 ActivityThread
+        val activityThreadClass = ReflectUtil.getClass(ACTIVITY_THREAD_CLASS)
+            ?: throw IllegalStateException("Failed to get ActivityThread class")
         
-        try {
-            // 获取 ActivityThread
-            val activityThreadClass = Class.forName("android.app.ActivityThread")
-            val currentActivityThreadMethod = activityThreadClass.getDeclaredMethod("currentActivityThread")
-            currentActivityThreadMethod.isAccessible = true
-            val activityThread = currentActivityThreadMethod.invoke(null)
-            
-            // 获取原始 Instrumentation
-            val mInstrumentationField = activityThreadClass.getDeclaredField("mInstrumentation")
-            mInstrumentationField.isAccessible = true
-            val instrumentation = mInstrumentationField.get(activityThread) as Instrumentation
-            
-            // 创建代理 Instrumentation
-            val proxyInstrumentation = InstrumentationProxy(instrumentation)
-            
-            // 替换 Instrumentation
-            mInstrumentationField.set(activityThread, proxyInstrumentation)
-            
-            Logger.i(TAG, "Hook instrumentation success")
-            
-        } catch (e: Exception) {
-            Logger.e(TAG, "Hook instrumentation failed", e)
+        val activityThread = ReflectUtil.invokeStaticMethod<Any>(
+            activityThreadClass,
+            "currentActivityThread"
+        ) ?: throw IllegalStateException("Failed to get ActivityThread instance")
+        
+        Logger.d(tag, "Got ActivityThread instance")
+        
+        // 2. 获取原始 Instrumentation
+        originalInstrumentation = ReflectUtil.getFieldValue<Instrumentation>(
+            activityThread,
+            activityThreadClass,
+            "mInstrumentation"
+        ) ?: throw IllegalStateException("Failed to get mInstrumentation")
+        
+        Logger.d(tag, "Got original Instrumentation: ${originalInstrumentation!!.javaClass.name}")
+        
+        // 3. 创建代理 Instrumentation
+        val proxyInstrumentation = InstrumentationProxy(originalInstrumentation!!)
+        
+        // 4. 替换 Instrumentation
+        val replaced = ReflectUtil.setFieldValue(
+            activityThread,
+            activityThreadClass,
+            "mInstrumentation",
+            proxyInstrumentation
+        )
+        
+        if (!replaced) {
+            throw IllegalStateException("Failed to replace Instrumentation")
+        }
+        
+        Logger.d(tag, "Replaced Instrumentation with proxy")
+    }
+    
+    @SuppressLint("PrivateApi")
+    override fun doUnhook() {
+        if (originalInstrumentation == null) {
+            Logger.w(tag, "Original Instrumentation is null, cannot unhook")
+            return
+        }
+        
+        // 获取 ActivityThread
+        val activityThreadClass = ReflectUtil.getClass(ACTIVITY_THREAD_CLASS)
+            ?: throw IllegalStateException("Failed to get ActivityThread class")
+        
+        val activityThread = ReflectUtil.invokeStaticMethod<Any>(
+            activityThreadClass,
+            "currentActivityThread"
+        ) ?: throw IllegalStateException("Failed to get ActivityThread instance")
+        
+        // 恢复原始 Instrumentation
+        val restored = ReflectUtil.setFieldValue(
+            activityThread,
+            activityThreadClass,
+            "mInstrumentation",
+            originalInstrumentation
+        )
+        
+        if (restored) {
+            Logger.d(tag, "Restored original Instrumentation")
+            originalInstrumentation = null
+        } else {
+            throw IllegalStateException("Failed to restore Instrumentation")
         }
     }
     
     /**
-     * 恢复原始 Instrumentation
+     * 恢复原始 Instrumentation（公开方法，保持兼容性）
      */
     @SuppressLint("PrivateApi")
     fun unhookInstrumentation(application: Application) {
-        Logger.i(TAG, "Start unhook instrumentation")
-        
-        try {
-            val activityThreadClass = Class.forName("android.app.ActivityThread")
-            val currentActivityThreadMethod = activityThreadClass.getDeclaredMethod("currentActivityThread")
-            currentActivityThreadMethod.isAccessible = true
-            val activityThread = currentActivityThreadMethod.invoke(null)
-            
-            val mInstrumentationField = activityThreadClass.getDeclaredField("mInstrumentation")
-            mInstrumentationField.isAccessible = true
-            val instrumentation = mInstrumentationField.get(activityThread)
-            
-            if (instrumentation is InstrumentationProxy) {
-                // 获取原始 Instrumentation
-                val baseField = InstrumentationProxy::class.java.getDeclaredField("base")
-                baseField.isAccessible = true
-                val baseInstrumentation = baseField.get(instrumentation) as Instrumentation
-                
-                // 恢复原始 Instrumentation
-                mInstrumentationField.set(activityThread, baseInstrumentation)
-                
-                Logger.i(TAG, "Unhook instrumentation success")
-            }
-            
-        } catch (e: Exception) {
-            Logger.e(TAG, "Unhook instrumentation failed", e)
-        }
+        unhook()
     }
 }

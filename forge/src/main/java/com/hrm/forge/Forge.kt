@@ -98,11 +98,10 @@ object Forge {
      * @param applicationLikeClassName ApplicationLike 类名（必须提供）
      */
     fun install(application: Application, applicationLikeClassName: String) {
-        val context = application.baseContext ?: application
-        ForgeApplicationDelegate.install(application, context, applicationLikeClassName)
+        ForgeApplicationDelegate.install(application,  applicationLikeClassName)
 
         // 立即转发 attachBaseContext
-        ForgeApplicationDelegate.dispatchAttachBaseContext(context)
+        ForgeApplicationDelegate.dispatchAttachBaseContext(application)
     }
 
     /**

@@ -2,74 +2,66 @@ package com.hrm.forge.internal.hook
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.hrm.forge.internal.hook.base.BaseHook
+import com.hrm.forge.internal.hook.base.MethodNameInvocationHandler
+import com.hrm.forge.internal.util.ReflectUtil
 import com.hrm.forge.internal.log.Logger
-import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
 /**
- * AMS (ActivityManagerService) Hook 辅助类
+ * AMS (ActivityManagerService) Hook 辅助类（重构版本）
  * 
- * 通过 Hook IActivityManager 接口来拦截 Service 相关的系统调用
+ * 使用策略模式 + 基类重构后的版本
  * 
  * 工作原理：
  * 1. 获取系统的 IActivityManager 实例（AMS 的 Binder 代理）
  * 2. 创建一个动态代理来拦截所有方法调用
- * 3. 在 startService/bindService 等方法中，将未注册的 Service 替换为 StubService
+ * 3. 在 startService/bindService/broadcastIntent 等方法中处理未注册的组件
  * 4. 其他方法直接转发给原始的 IActivityManager
  * 
- * 注意：
- * 1. 此类必须在应用启动早期调用（在 attachBaseContext 中）
- * 2. 此类不能被混淆
+ * 优化点：
+ * - 继承 BaseHook，统一生命周期管理
+ * - 使用 ReflectUtil，消除重复反射代码
+ * - 使用 MethodNameInvocationHandler，简化拦截逻辑
  */
-internal object AMSHook {
+internal object AMSHook : BaseHook() {
     
-    private const val TAG = "AMSHookHelper"
+    override val tag = "AMSHook"
+    
+    private lateinit var context: Context
+    
+    private const val I_ACTIVITY_MANAGER_CLASS = "android.app.IActivityManager"
+    private const val ACTIVITY_MANAGER_CLASS = "android.app.ActivityManager"
+    private const val ACTIVITY_MANAGER_NATIVE_CLASS = "android.app.ActivityManagerNative"
     
     /**
-     * 是否已经 Hook
-     */
-    private var isHooked = false
-    
-    /**
-     * Hook AMS
+     * Hook AMS（公开方法，保持兼容性）
      */
     fun hookAMS(context: Context) {
-        if (isHooked) {
-            Logger.i(TAG, "AMS already hooked, skip")
-            return
-        }
+        this.context = context
+        hook()
+    }
+    
+    @SuppressLint("PrivateApi")
+    override fun doHook() {
+        // 1. 获取 IActivityManager 实例
+        val iActivityManager = getIActivityManager()
+            ?: throw IllegalStateException("Failed to get IActivityManager")
         
-        try {
-            Logger.i(TAG, "Start hooking AMS...")
-            
-            // 1. 获取 IActivityManager 实例
-            val iActivityManager = getIActivityManager()
-            if (iActivityManager == null) {
-                Logger.e(TAG, "Failed to get IActivityManager")
-                return
-            }
-            
-            Logger.d(TAG, "Got IActivityManager: ${iActivityManager.javaClass.name}")
-            
-            // 2. 创建动态代理
-            val proxyAMS = Proxy.newProxyInstance(
-                context.classLoader,
-                arrayOf(Class.forName("android.app.IActivityManager")),
-                AMSInvocationHandler(iActivityManager, context)
-            )
-            
-            Logger.d(TAG, "Created AMS proxy: ${proxyAMS.javaClass.name}")
-            
-            // 3. 替换系统的 IActivityManager
-            replaceIActivityManager(proxyAMS)
-            
-            isHooked = true
-            Logger.i(TAG, "✅ AMS hook successfully")
-            
-        } catch (e: Exception) {
-            Logger.e(TAG, "Failed to hook AMS", e)
-        }
+        Logger.d(tag, "Got IActivityManager: ${iActivityManager.javaClass.name}")
+        
+        // 2. 创建动态代理
+        val proxyAMS = Proxy.newProxyInstance(
+            context.classLoader,
+            arrayOf(Class.forName(I_ACTIVITY_MANAGER_CLASS)),
+            AMSInvocationHandler(iActivityManager, context)
+        )
+        
+        Logger.d(tag, "Created AMS proxy: ${proxyAMS.javaClass.name}")
+        
+        // 3. 替换系统的 IActivityManager
+        replaceIActivityManager(proxyAMS)
     }
     
     /**
@@ -81,33 +73,30 @@ internal object AMSHook {
      */
     @SuppressLint("PrivateApi")
     private fun getIActivityManager(): Any? {
-        return try {
-            // 先尝试 Android 8.0+ 的方式
-            val activityManagerClass = Class.forName("android.app.ActivityManager")
-            val iActivityManagerSingletonField = activityManagerClass.getDeclaredField("IActivityManagerSingleton")
-            iActivityManagerSingletonField.isAccessible = true
-            val singleton = iActivityManagerSingletonField.get(null)
-            
-            // 从 Singleton 中获取 IActivityManager
-            val singletonClass = Class.forName("android.util.Singleton")
-            val getMethod = singletonClass.getDeclaredMethod("get")
-            getMethod.isAccessible = true
-            getMethod.invoke(singleton)
-            
-        } catch (e: Exception) {
-            Logger.d(TAG, "Failed to get IActivityManager via ActivityManager, try ActivityManagerNative")
-            
-            // 尝试 Android 8.0 之前的方式
-            try {
-                val activityManagerNativeClass = Class.forName("android.app.ActivityManagerNative")
-                val getDefaultMethod = activityManagerNativeClass.getDeclaredMethod("getDefault")
-                getDefaultMethod.isAccessible = true
-                getDefaultMethod.invoke(null)
-            } catch (e2: Exception) {
-                Logger.e(TAG, "Failed to get IActivityManager via ActivityManagerNative", e2)
-                null
+        // 先尝试 Android 8.0+ 的方式
+        ReflectUtil.getClass(ACTIVITY_MANAGER_CLASS)?.let { activityManagerClass ->
+            ReflectUtil.getSingletonInstance<Any>(
+                activityManagerClass,
+                "IActivityManagerSingleton"
+            )?.let { instance ->
+                Logger.d(tag, "Got IActivityManager via ActivityManager.IActivityManagerSingleton")
+                return instance
             }
         }
+        
+        // 尝试 Android 8.0 之前的方式
+        ReflectUtil.getClass(ACTIVITY_MANAGER_NATIVE_CLASS)?.let { activityManagerNativeClass ->
+            ReflectUtil.invokeStaticMethod<Any>(
+                activityManagerNativeClass,
+                "getDefault"
+            )?.let { instance ->
+                Logger.d(tag, "Got IActivityManager via ActivityManagerNative.getDefault()")
+                return instance
+            }
+        }
+        
+        Logger.e(tag, "Failed to get IActivityManager")
+        return null
     }
     
     /**
@@ -115,204 +104,113 @@ internal object AMSHook {
      */
     @SuppressLint("PrivateApi")
     private fun replaceIActivityManager(proxy: Any) {
-        try {
-            // 先尝试 Android 8.0+ 的方式
-            val activityManagerClass = Class.forName("android.app.ActivityManager")
-            val iActivityManagerSingletonField = activityManagerClass.getDeclaredField("IActivityManagerSingleton")
-            iActivityManagerSingletonField.isAccessible = true
-            val singleton = iActivityManagerSingletonField.get(null)
-            
-            // 替换 Singleton 中的 mInstance
-            val singletonClass = Class.forName("android.util.Singleton")
-            val mInstanceField = singletonClass.getDeclaredField("mInstance")
-            mInstanceField.isAccessible = true
-            mInstanceField.set(singleton, proxy)
-            
-            Logger.d(TAG, "Replaced IActivityManager via ActivityManager.IActivityManagerSingleton")
-            
-        } catch (e: Exception) {
-            Logger.d(TAG, "Failed to replace via ActivityManager, try ActivityManagerNative")
-            
-            // 尝试 Android 8.0 之前的方式
-            try {
-                val activityManagerNativeClass = Class.forName("android.app.ActivityManagerNative")
-                val gDefaultField = activityManagerNativeClass.getDeclaredField("gDefault")
-                gDefaultField.isAccessible = true
-                val singleton = gDefaultField.get(null)
-                
-                // 替换 Singleton 中的 mInstance
-                val singletonClass = Class.forName("android.util.Singleton")
-                val mInstanceField = singletonClass.getDeclaredField("mInstance")
-                mInstanceField.isAccessible = true
-                mInstanceField.set(singleton, proxy)
-                
-                Logger.d(TAG, "Replaced IActivityManager via ActivityManagerNative.gDefault")
-                
-            } catch (e2: Exception) {
-                Logger.e(TAG, "Failed to replace IActivityManager", e2)
-                throw e2
+        // 先尝试 Android 8.0+ 的方式
+        ReflectUtil.getClass(ACTIVITY_MANAGER_CLASS)?.let { activityManagerClass ->
+            if (ReflectUtil.replaceSingletonInstance(
+                    activityManagerClass,
+                    "IActivityManagerSingleton",
+                    proxy
+                )) {
+                Logger.d(tag, "Replaced IActivityManager via ActivityManager.IActivityManagerSingleton")
+                return
             }
         }
+        
+        // 尝试 Android 8.0 之前的方式
+        ReflectUtil.getClass(ACTIVITY_MANAGER_NATIVE_CLASS)?.let { activityManagerNativeClass ->
+            if (ReflectUtil.replaceSingletonInstance(
+                    activityManagerNativeClass,
+                    "gDefault",
+                    proxy
+                )) {
+                Logger.d(tag, "Replaced IActivityManager via ActivityManagerNative.gDefault")
+                return
+            }
+        }
+        
+        throw IllegalStateException("Failed to replace IActivityManager")
     }
     
     /**
-     * AMS 方法调用处理器
+     * AMS 方法调用处理器（使用 MethodNameInvocationHandler 简化）
      */
     private class AMSInvocationHandler(
-        private val base: Any,
+        base: Any,
         private val context: Context
-    ) : InvocationHandler {
+    ) : MethodNameInvocationHandler(
+        base,
+        "AMSInvocationHandler",
+        "startService",
+        "bindService",
+        "bindIsolatedService",
+        "registerReceiver",
+        "registerReceiverWithFeature",
+        "broadcastIntent",
+        "broadcastIntentWithFeature"
+    ) {
         
-        private val TAG = "AMSInvocationHandler"
-        
-        override fun invoke(proxy: Any?, method: Method, args: Array<out Any?>?): Any? {
-            // 拦截 startService 方法
-            if (method.name == "startService") {
-                return handleStartService(method, args)
-            }
-            
-            // 拦截 bindService 方法
-            if (method.name == "bindService" || method.name == "bindIsolatedService") {
-                return handleBindService(method, args)
-            }
-            
-            // 拦截 registerReceiver 方法（动态注册广播）
-            if (method.name == "registerReceiver" || method.name == "registerReceiverWithFeature") {
-                return handleRegisterReceiver(method, args)
-            }
-            
-            // 拦截 broadcastIntent 方法（发送广播）
-            if (method.name == "broadcastIntent" || method.name == "broadcastIntentWithFeature") {
-                return handleBroadcastIntent(method, args)
-            }
-            
-            // 其他方法直接转发
-            return try {
-                method.invoke(base, *(args ?: emptyArray()))
-            } catch (e: java.lang.reflect.InvocationTargetException) {
-                throw e.targetException ?: e
+        override fun handleIntercept(method: Method, args: Array<out Any?>?): Any? {
+            return when (method.name) {
+                "startService" -> handleStartService(args)
+                "bindService", "bindIsolatedService" -> handleBindService(args)
+                "registerReceiver", "registerReceiverWithFeature" -> handleRegisterReceiver()
+                "broadcastIntent", "broadcastIntentWithFeature" -> handleBroadcastIntent(args)
+                else -> INVOKE_ORIGINAL
             }
         }
         
         /**
          * 处理 startService 方法
-         * 
-         * startService 的方法签名（可能因 Android 版本而异）：
-         * - ComponentName startService(IApplicationThread caller, Intent service, String resolvedType, ...)
+         * 方法签名：ComponentName startService(IApplicationThread caller, Intent service, String resolvedType, ...)
          */
-        private fun handleStartService(method: Method, args: Array<out Any?>?): Any? {
-            try {
-                Logger.d(TAG, "Intercepting startService")
-                
-                // 处理 Intent：将未注册的 Service 替换为 StubService
-                if (args != null && args.size >= 2) {
-                    val intent = args[1] as? android.content.Intent
-                    if (intent != null) {
-                        ComponentManager.processStartServiceIntent(context, intent)
-                    }
-                }
-                
-                // 调用原始方法
-                return method.invoke(base, *(args ?: emptyArray()))
-                
-            } catch (e: java.lang.reflect.InvocationTargetException) {
-                throw e.targetException ?: e
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to handle startService", e)
-                throw e
+        private fun handleStartService(args: Array<out Any?>?): Any? {
+            Logger.d(tag, "Intercepting startService")
+            
+            // Intent 通常是第二个参数（索引 1）
+            getIntent(args, 1)?.let { intent ->
+                ComponentManager.processStartServiceIntent(context, intent)
             }
+            
+            return INVOKE_ORIGINAL
         }
         
         /**
          * 处理 bindService 方法
-         * 
-         * bindService 的方法签名（可能因 Android 版本而异）：
-         * - int bindService(IApplicationThread caller, IBinder token, Intent service, String resolvedType, IServiceConnection connection, int flags, ...)
+         * 方法签名：int bindService(IApplicationThread caller, IBinder token, Intent service, String resolvedType, ...)
          */
-        private fun handleBindService(method: Method, args: Array<out Any?>?): Any? {
-            try {
-                Logger.d(TAG, "Intercepting bindService")
-                
-                // 处理 Intent：将未注册的 Service 替换为 StubService
-                if (args != null && args.size >= 3) {
-                    val intent = args[2] as? android.content.Intent
-                    if (intent != null) {
-                        ComponentManager.processBindServiceIntent(context, intent)
-                    }
-                }
-                
-                // 调用原始方法
-                return method.invoke(base, *(args ?: emptyArray()))
-                
-            } catch (e: java.lang.reflect.InvocationTargetException) {
-                throw e.targetException ?: e
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to handle bindService", e)
-                throw e
+        private fun handleBindService(args: Array<out Any?>?): Any? {
+            Logger.d(tag, "Intercepting bindService")
+            
+            // Intent 通常是第三个参数（索引 2）
+            getIntent(args, 2)?.let { intent ->
+                ComponentManager.processBindServiceIntent(context, intent)
             }
+            
+            return INVOKE_ORIGINAL
         }
         
         /**
          * 处理 registerReceiver 方法（动态注册广播）
-         * 
-         * registerReceiver 的方法签名（可能因 Android 版本而异）：
-         * - Intent registerReceiver(IApplicationThread caller, String callerPackage, 
-         *     IIntentReceiver receiver, IntentFilter filter, String requiredPermission, ...)
-         * 
-         * 注意：此方法主要用于记录和监控，实际上动态注册的 Receiver 不需要占坑
-         * 因为它们已经通过 context.registerReceiver() 正常注册了
+         * 注意：动态注册的 Receiver 不需要特殊处理
          */
-        private fun handleRegisterReceiver(method: Method, args: Array<out Any?>?): Any? {
-            try {
-                Logger.d(TAG, "Intercepting registerReceiver")
-                
-                // 动态注册的 Receiver 不需要特殊处理，直接转发
-                // 因为它们已经通过正常的 ClassLoader 加载
-                return method.invoke(base, *(args ?: emptyArray()))
-                
-            } catch (e: java.lang.reflect.InvocationTargetException) {
-                throw e.targetException ?: e
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to handle registerReceiver", e)
-                throw e
-            }
+        private fun handleRegisterReceiver(): Any? {
+            Logger.d(tag, "Intercepting registerReceiver")
+            return INVOKE_ORIGINAL
         }
         
         /**
          * 处理 broadcastIntent 方法（发送广播）
-         * 
-         * broadcastIntent 的方法签名（可能因 Android 版本而异）：
-         * - int broadcastIntent(IApplicationThread caller, Intent intent, String resolvedType, 
-         *     IIntentReceiver resultTo, int resultCode, String resultData, Bundle map, 
-         *     String[] requiredPermissions, int appOp, Bundle options, boolean serialized, 
-         *     boolean sticky, int userId)
-         * 
-         * 工作流程：
-         * 1. 检查 Intent 的 component 是否指向热更新 APK 中的 Receiver
-         * 2. 如果是，将真实 Receiver 类名保存到 Intent extra
-         * 3. 替换 component 为 StubReceiver
+         * 方法签名：int broadcastIntent(IApplicationThread caller, Intent intent, String resolvedType, ...)
          */
-        private fun handleBroadcastIntent(method: Method, args: Array<out Any?>?): Any? {
-            try {
-                Logger.d(TAG, "Intercepting broadcastIntent")
-                
-                // 处理 Intent：将未注册的 Receiver 替换为 StubReceiver
-                if (args != null && args.size >= 3) {
-                    val intent = args[2] as? android.content.Intent
-                    if (intent != null) {
-                        ComponentManager.processBroadcastIntent(context, intent)
-                    }
-                }
-                
-                // 调用原始方法
-                return method.invoke(base, *(args ?: emptyArray()))
-                
-            } catch (e: java.lang.reflect.InvocationTargetException) {
-                throw e.targetException ?: e
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to handle broadcastIntent", e)
-                throw e
+        private fun handleBroadcastIntent(args: Array<out Any?>?): Any? {
+            Logger.d(tag, "Intercepting broadcastIntent")
+            
+            // Intent 通常是第二个参数（索引 1）
+            getIntent(args, 1)?.let { intent ->
+                ComponentManager.processBroadcastIntent(context, intent)
             }
+            
+            return INVOKE_ORIGINAL
         }
     }
 }
